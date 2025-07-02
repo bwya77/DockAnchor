@@ -8,6 +8,13 @@
 import SwiftUI
 import CoreData
 
+private func getAppVersion() -> String {
+    if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+        return version
+    }
+    return "1.0.0"
+}
+
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var dockMonitor = DockMonitor()
@@ -21,17 +28,14 @@ struct ContentView: View {
                 Image(systemName: "dock.rectangle")
                     .font(.system(size: 48))
                     .foregroundColor(.accentColor)
-                
                 Text("DockAnchor")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                
                 Text("Keep your dock anchored to one display")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
             .padding(.top)
-            
             Divider()
             
             // Status Section
@@ -146,15 +150,7 @@ struct ContentView: View {
             .padding()
             .background(Color(NSColor.controlBackgroundColor))
             .cornerRadius(8)
-            
             Spacer()
-            
-            // Footer
-            Text("DockAnchor prevents the macOS dock from moving between displays")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.bottom)
         }
         .padding()
         .frame(width: 420, height: 520)
@@ -211,74 +207,78 @@ struct SettingsView: View {
             Divider()
             
             // Content
-            ScrollView {
-                VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Startup & Background")
-                                .font(.headline)
-                            
-                            Toggle("Start at Login", isOn: $appSettings.startAtLogin)
-                            Toggle("Run in Background", isOn: $appSettings.runInBackground)
-                            
-                            Text("When 'Run in Background' is enabled, the app continues protecting even when the window is closed.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Startup & Background")
+                            .font(.headline)
                         
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Interface")
-                                .font(.headline)
-                            
-                            Toggle("Show Menu Bar Icon", isOn: $appSettings.showStatusIcon)
-                            Toggle("Hide from Dock", isOn: $appSettings.hideFromDock)
-                            
-                            Text("The menu bar icon provides quick access to controls and shows protection status.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Text("When 'Hide from Dock' is enabled, the app will only appear in the menu bar and won't show in the dock.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        Toggle("Start at Login", isOn: $appSettings.startAtLogin)
+                        Toggle("Run in Background", isOn: $appSettings.runInBackground)
                         
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Display Info")
-                                .font(.headline)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Available Displays: \(dockMonitor.availableDisplays.count)")
-                                
-                                ForEach(dockMonitor.availableDisplays, id: \.id) { display in
-                                    HStack {
-                                        Circle()
-                                            .fill(display.id == appSettings.selectedDisplayID ? Color.green : Color.gray)
-                                            .frame(width: 8, height: 8)
-                                        Text(display.name)
-                                        if display.isPrimary {
-                                            Text("(Primary)")
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Spacer()
-                                    }
-                                    .font(.caption)
-                                }
-                            }
-                            .padding(.leading, 8)
-                        }
+                        Text("When 'Run in Background' is enabled, the app continues protecting even when the window is closed.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    .padding()
                     
-                    Spacer(minLength: 20)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Interface")
+                            .font(.headline)
+                        
+                        Toggle("Show Menu Bar Icon", isOn: $appSettings.showStatusIcon)
+                        Toggle("Hide from Dock", isOn: $appSettings.hideFromDock)
+                        
+                        Text("The menu bar icon provides quick access to controls and shows protection status.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text("When 'Hide from Dock' is enabled, the app will only appear in the menu bar and won't show in the dock.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Display Info")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Available Displays: \(dockMonitor.availableDisplays.count)")
+                            
+                            ForEach(dockMonitor.availableDisplays, id: \.id) { display in
+                                HStack {
+                                    Circle()
+                                        .fill(display.id == appSettings.selectedDisplayID ? Color.green : Color.gray)
+                                        .frame(width: 8, height: 8)
+                                    Text(display.name)
+                                    if display.isPrimary {
+                                        Text("(Primary)")
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                }
+                                .font(.caption)
+                            }
+                        }
+                        .padding(.leading, 8)
+                    }
+                }
+                .padding()
+                
+                Spacer(minLength: 20)
+                
+                VStack(spacing: 4) {
                     Text("Changes take effect immediately")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.bottom)
+                    
+                    Text("Version \(getAppVersion())")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
+                .padding(.bottom)
             }
         }
-        .frame(width: 480, height: 400)
+        .frame(minWidth: 480, minHeight: 400)
         .onAppear {
             dockMonitor.updateAvailableDisplays()
         }

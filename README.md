@@ -2,6 +2,8 @@
 
 A macOS app that prevents the dock from moving between displays in multi-monitor setups.
 
+![DockAnchor](images/main_UI.png)
+
 ## Problem
 
 In macOS with multiple monitors, the dock automatically moves to whichever display your cursor approaches at the bottom edge. This can be distracting and interfere with workflow, especially when you want the dock to stay on your primary display.
@@ -12,24 +14,29 @@ DockAnchor intercepts mouse movement events and blocks the dock from moving to s
 
 ## Features
 
+![DockAnchor](images/settings.png)
+
 - **Seamless Protection**: Blocks dock movement without visual interruptions
 - **System-Level Integration**: Uses macOS accessibility APIs for clean interception
 - **Background Operation**: Runs silently in the background with optional menu bar icon
 - **Smart Detection**: Automatically detects dock position (bottom, left, right)
 - **Multi-Display Aware**: Works with any number of connected displays
 - **User-Friendly Interface**: Simple controls and status monitoring
-- **Keyboard Shortcuts**: Quick access to common functions
 - **Dock Visibility Control**: Option to hide app from dock when running
 - **Smart Window Management**: Prevents multiple app instances when clicking dock icon
 - **Display-Specific Anchoring**: Choose which display to anchor the dock to
 
 ## Installation
 
+### Building from Source
 1. Clone this repository
 2. Open `DockAnchor.xcodeproj` in Xcode
 3. Build and run the project
 4. **Grant accessibility permissions when prompted** (required for functionality)
 5. Optionally enable "Start at Login" in settings
+
+### Download Pre-Built App
+- Download the latest release from the releases page
 
 ## Required Permissions
 
@@ -61,10 +68,6 @@ DockAnchor requires accessibility permissions to function properly. This allows 
 - Right-click for quick access to controls
 - Left-click to open the main window
 - Displays current anchor display and protection status
-
-### Keyboard Shortcuts
-- `⌘⌥D` - Show DockAnchor window
-- `⌘⌥P` - Toggle protection on/off
 
 ### Settings
 
@@ -170,13 +173,6 @@ open DockAnchor.xcodeproj
 ## License
 
 MIT License - see LICENSE file for details.
-
-## Alternative Solutions
-
-If DockAnchor doesn't meet your needs, consider these alternatives:
-1. Move dock to left/right side (prevents all movement)
-2. Disable "Displays have separate Spaces" in Mission Control preferences
-3. Use the included `dock_blocker.sh` script (causes flashing but may work as fallback)
 
 ## Support
 
