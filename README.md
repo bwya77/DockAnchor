@@ -2,7 +2,7 @@
 
 A macOS app that prevents the dock from moving between displays in multi-monitor setups.
 
-![DockAnchor](images/main_UI.png)
+![DockAnchor](images/main_ui.png)
 
 ## Problem
 
