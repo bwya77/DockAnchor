@@ -19,8 +19,7 @@ DockAnchor intercepts mouse movement events and blocks the dock from moving to s
 - **Seamless Protection**: Blocks dock movement without visual interruptions
 - **System-Level Integration**: Uses macOS accessibility APIs for clean interception
 - **Background Operation**: Runs silently in the background with optional menu bar icon
-- **Smart Detection**: Automatically detects dock position (bottom, left, right)
-- **Multi-Display Aware**: Works with any number of connected displays
+- **Multi-Display Aware**: Works with any number of connected displays including sidecar
 - **User-Friendly Interface**: Simple controls and status monitoring
 - **Dock Visibility Control**: Option to hide app from dock when running
 - **Smart Window Management**: Prevents multiple app instances when clicking dock icon
@@ -122,36 +121,10 @@ This approach is superior to dock-killing scripts because:
 
 DockAnchor:
 - Only monitors mouse movement events
-- Does not collect or transmit any personal data
+- Does not collect or transmit any personal data. none.
 - Runs entirely locally on your machine
 - Source code is open and auditable
 - **Requires accessibility permissions for core functionality**
-
-## Troubleshooting
-
-### Accessibility Permission Issues
-1. Open **System Preferences → Security & Privacy → Privacy → Accessibility**
-2. Ensure DockAnchor is listed and checked
-3. If not listed, click the lock, then drag DockAnchor from Applications to the list
-4. **Restart DockAnchor** after granting permissions
-5. If issues persist, try removing and re-adding DockAnchor to the accessibility list
-
-### Protection Not Working
-1. **Verify accessibility permissions are granted** (most common issue)
-2. Check that protection is enabled (green status indicator)
-3. Try restarting the app
-4. Use "Force Dock to Primary Display" button to reset dock position
-5. Check that the selected anchor display is correct
-
-### App Won't Start at Login
-1. Check Settings → "Start at Login" is enabled
-2. Verify the app has proper permissions
-3. Try manually adding to Login Items in System Preferences → Users & Groups
-
-### Dock Click Issues
-- **Problem**: Clicking dock icon opens multiple app instances
-- **Solution**: Fixed in latest version - dock clicks now bring existing window to front
-- **Alternative**: Use "Hide from Dock" setting to prevent dock icon entirely
 
 ## Development
 
@@ -182,3 +155,13 @@ For issues, feature requests, or questions:
 - **Include accessibility permission status**
 - Include steps to reproduce any problems
 - Check the troubleshooting section above first
+
+
+If you find my work helpful, please consider:
+
+<a href="https://www.buymeacoffee.com/bwya77" style="margin-right: 10px;">
+    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" />
+</a>
+<a href="https://github.com/sponsors/bwya77">
+    <img src="https://img.shields.io/badge/sponsor-30363D?style=for-the-badge&logo=GitHub-Sponsors&logoColor=#EA4AAA" />
+</a>
