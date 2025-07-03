@@ -12,7 +12,7 @@ private func getAppVersion() -> String {
     if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
         return version
     }
-    return "1.2"
+    return "1.3"
 }
 
 struct ContentView: View {

@@ -14,16 +14,25 @@ DockAnchor intercepts mouse movement events and blocks the dock from moving to s
 
 ## Features
 
-![DockAnchor](images/settings.png)
+![DockAnchor](images/settings_ui.png)
 
-- **Seamless Protection**: Blocks dock movement without visual interruptions
-- **System-Level Integration**: Uses macOS accessibility APIs for clean interception
-- **Background Operation**: Runs silently in the background with optional menu bar icon
-- **Multi-Display Aware**: Works with any number of connected displays including sidecar
-- **User-Friendly Interface**: Simple controls and status monitoring
-- **Dock Visibility Control**: Option to hide app from dock when running
-- **Smart Window Management**: Prevents multiple app instances when clicking dock icon
-- **Display-Specific Anchoring**: Choose which display to anchor the dock to
+- **Start app at login**: Automatically launch DockAnchor when you log in
+- **Run in background**: Keep protection active even when the main window is closed
+- **Dock Icon**: Displays a status icon in the macOS dock
+- **Menu Bar Icon**: Shows app icon in the menu bar for quick access
+- **Display Selection**: Choose which display the dock should stay on
+
+
+![DockAnchor](images/monitor_and_block.png)
+
+- **Status Monitoring**: Real-time feedback on protection status
+
+![DockAnchor](images/menu_bar.png)
+
+- **Friendly Display Names**: Automatically detects and displays connected monitors with user-friendly names
+- **Check for Updates**: Automatically checks for new releases and updates
+- **Show DockAnchir**: Provides a simple way to access the app's main window
+- **Anchor Display**: Select which display the dock should remain on
 
 ## Installation
 
