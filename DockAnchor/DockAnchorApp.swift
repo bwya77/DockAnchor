@@ -42,6 +42,7 @@ struct DockAnchorApp: App {
     @StateObject private var appSettings = AppSettings()
     @StateObject private var dockMonitor = DockMonitor()
     @StateObject private var menuBarManager = MenuBarManager()
+    @StateObject private var updateChecker = UpdateChecker()
     
     @NSApplicationDelegateAdaptor(ApplicationDelegate.self) var appDelegate
     private let windowHiderDelegate = WindowHiderDelegate()
@@ -52,6 +53,7 @@ struct DockAnchorApp: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(appSettings)
                 .environmentObject(dockMonitor)
+                .environmentObject(updateChecker)
                 .onAppear {
                     setupApp()
                 }
@@ -89,7 +91,7 @@ struct DockAnchorApp: App {
         appDelegate.setup(appSettings: appSettings, dockMonitor: dockMonitor, menuBarManager: menuBarManager)
         
         // Initialize the menu bar with current settings
-        menuBarManager.setup(appSettings: appSettings, dockMonitor: dockMonitor)
+        menuBarManager.setup(appSettings: appSettings, dockMonitor: dockMonitor, updateChecker: updateChecker)
         
         // Set up window delegate
         windowHiderDelegate.setup(appSettings: appSettings)
@@ -113,6 +115,11 @@ struct DockAnchorApp: App {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 dockMonitor.startMonitoring()
             }
+        }
+        
+        // Check for updates after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            updateChecker.checkForUpdates()
         }
     }
 }
@@ -192,6 +199,7 @@ class MenuBarManager: NSObject, ObservableObject {
     private var statusItem: NSStatusItem?
     private var appSettings: AppSettings?
     private var dockMonitor: DockMonitor?
+    private var updateChecker: UpdateChecker?
     private var cancellables = Set<AnyCancellable>()
     
     deinit {
@@ -199,9 +207,10 @@ class MenuBarManager: NSObject, ObservableObject {
         cancellables.removeAll()
     }
     
-    func setup(appSettings: AppSettings, dockMonitor: DockMonitor) {
+    func setup(appSettings: AppSettings, dockMonitor: DockMonitor, updateChecker: UpdateChecker) {
         self.appSettings = appSettings
         self.dockMonitor = dockMonitor
+        self.updateChecker = updateChecker
         
         // Always setup the status bar initially (since default is true)
         setupStatusBar()
@@ -292,6 +301,15 @@ class MenuBarManager: NSObject, ObservableObject {
         
         menu.addItem(NSMenuItem.separator())
         
+        // Check for updates
+        let updateMenuItem = NSMenuItem(
+            title: "Check for Updates",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
+        updateMenuItem.target = self
+        menu.addItem(updateMenuItem)
+        
         // Show main window
         let showMenuItem = NSMenuItem(
             title: "Show DockAnchor",
@@ -374,6 +392,10 @@ class MenuBarManager: NSObject, ObservableObject {
     @objc private func selectDisplay(_ sender: NSMenuItem) {
         guard let displayID = sender.representedObject as? CGDirectDisplayID else { return }
         appSettings?.selectedDisplayID = displayID
+    }
+    
+    @objc private func checkForUpdates() {
+        updateChecker?.checkForUpdates(isManual: true)
     }
     
     @objc func showMainWindow() {

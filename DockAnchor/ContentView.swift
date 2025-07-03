@@ -12,7 +12,7 @@ private func getAppVersion() -> String {
     if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
         return version
     }
-    return "1.1"
+    return "1.2"
 }
 
 struct ContentView: View {
@@ -186,6 +186,7 @@ struct ContentView: View {
 struct SettingsView: View {
     @EnvironmentObject var appSettings: AppSettings
     @EnvironmentObject var dockMonitor: DockMonitor
+    @EnvironmentObject var updateChecker: UpdateChecker
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -286,5 +287,6 @@ struct SettingsView: View {
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
         .environmentObject(AppSettings())
         .environmentObject(DockMonitor())
+        .environmentObject(UpdateChecker())
 }
 
