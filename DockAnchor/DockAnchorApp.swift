@@ -10,8 +10,28 @@ import Cocoa
 import Combine
 
 class WindowHiderDelegate: NSObject, NSWindowDelegate {
+    private var appSettings: AppSettings?
+    
+    func setup(appSettings: AppSettings) {
+        self.appSettings = appSettings
+    }
+    
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         sender.orderOut(nil)
+        
+        // If the setting is enabled, hide the app from dock when window is closed
+        if appSettings?.hideFromDock == true {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NSApp.setActivationPolicy(.accessory)
+                
+                // Force a dock refresh
+                DistributedNotificationCenter.default().post(
+                    name: NSNotification.Name("com.apple.dock.refresh"),
+                    object: nil
+                )
+            }
+        }
+        
         return false
     }
 }
@@ -71,18 +91,19 @@ struct DockAnchorApp: App {
         // Initialize the menu bar with current settings
         menuBarManager.setup(appSettings: appSettings, dockMonitor: dockMonitor)
         
+        // Set up window delegate
+        windowHiderDelegate.setup(appSettings: appSettings)
+        
         // Set the anchor display from settings
         dockMonitor.changeAnchorDisplay(to: appSettings.selectedDisplayID)
         
-        // Ensure main window is visible even when hiding from dock
+        // Ensure main window is visible on launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            if self.appSettings.hideFromDock {
-                // Make sure the main window is visible
-                for window in NSApp.windows {
-                    if window.title == "DockAnchor" || window.contentViewController != nil {
-                        window.makeKeyAndOrderFront(nil)
-                        break
-                    }
+            // Make sure the main window is visible
+            for window in NSApp.windows {
+                if window.title == "DockAnchor" || window.contentViewController != nil {
+                    window.makeKeyAndOrderFront(nil)
+                    break
                 }
             }
         }
@@ -143,10 +164,11 @@ class ApplicationDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
     
     private func updateActivationPolicy() {
-        let shouldHideFromDock = appSettings?.hideFromDock ?? false
-        let newPolicy: NSApplication.ActivationPolicy = shouldHideFromDock ? .accessory : .regular
+        // Only hide from dock if explicitly requested (not on initial launch)
+        // The app will start with regular activation policy and only change when window is closed
+        let newPolicy: NSApplication.ActivationPolicy = .regular
         
-        // Set the activation policy - this will hide/show the app in dock
+        // Set the activation policy - this will show the app in dock
         NSApp.setActivationPolicy(newPolicy)
         
         // Force the change to take effect immediately
@@ -154,18 +176,8 @@ class ApplicationDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             // Activate the app to trigger the policy change
             NSApp.activate(ignoringOtherApps: false)
             
-            // If hiding from dock, ensure menu bar is visible and window is shown
-            if shouldHideFromDock {
-                self.menuBarManager?.ensureStatusBarVisible()
-                
-                // Make sure the main window is visible even when hidden from dock
-                for window in NSApp.windows {
-                    if window.title == "DockAnchor" || window.contentViewController != nil {
-                        window.makeKeyAndOrderFront(nil)
-                        break
-                    }
-                }
-            }
+            // Ensure menu bar is visible
+            self.menuBarManager?.ensureStatusBarVisible()
             
             // Force a dock refresh by sending a notification
             DistributedNotificationCenter.default().post(
@@ -366,6 +378,15 @@ class MenuBarManager: NSObject, ObservableObject {
     
     @objc func showMainWindow() {
         NSApp.activate(ignoringOtherApps: true)
+        
+        // Always restore the dock icon when showing the window
+        NSApp.setActivationPolicy(.regular)
+        
+        // Force a dock refresh
+        DistributedNotificationCenter.default().post(
+            name: NSNotification.Name("com.apple.dock.refresh"),
+            object: nil
+        )
         
         // Find and show the main window
         for window in NSApp.windows {

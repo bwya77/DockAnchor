@@ -39,6 +39,8 @@ class AppSettings: ObservableObject {
         }
     }
     
+
+    
     @Published var selectedDisplayID: CGDirectDisplayID {
         didSet {
             UserDefaults.standard.set(Int(selectedDisplayID), forKey: "selectedDisplayID")
@@ -51,6 +53,7 @@ class AppSettings: ObservableObject {
         self.runInBackground = UserDefaults.standard.object(forKey: "runInBackground") as? Bool ?? true
         self.showStatusIcon = UserDefaults.standard.object(forKey: "showStatusIcon") as? Bool ?? true
         self.hideFromDock = UserDefaults.standard.object(forKey: "hideFromDock") as? Bool ?? false
+
         
         // Get saved display ID or default to main display
         let savedDisplayID = UserDefaults.standard.object(forKey: "selectedDisplayID") as? Int ?? Int(CGMainDisplayID())

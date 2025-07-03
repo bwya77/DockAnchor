@@ -12,13 +12,13 @@ private func getAppVersion() -> String {
     if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
         return version
     }
-    return "1.0.0"
+    return "1.1"
 }
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @StateObject private var dockMonitor = DockMonitor()
-    @StateObject private var appSettings = AppSettings()
+    @EnvironmentObject var dockMonitor: DockMonitor
+    @EnvironmentObject var appSettings: AppSettings
     @State private var showingSettings = false
     
     var body: some View {
@@ -155,7 +155,7 @@ struct ContentView: View {
         .padding()
         .frame(width: 420, height: 520)
         .sheet(isPresented: $showingSettings) {
-            SettingsView(appSettings: appSettings, dockMonitor: dockMonitor)
+            SettingsView()
         }
         .onAppear {
             // Request permissions on startup
@@ -184,8 +184,8 @@ struct ContentView: View {
 }
 
 struct SettingsView: View {
-    @ObservedObject var appSettings: AppSettings
-    @ObservedObject var dockMonitor: DockMonitor
+    @EnvironmentObject var appSettings: AppSettings
+    @EnvironmentObject var dockMonitor: DockMonitor
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -267,10 +267,6 @@ struct SettingsView: View {
                 Spacer(minLength: 20)
                 
                 VStack(spacing: 4) {
-                    Text("Changes take effect immediately")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
                     Text("Version \(getAppVersion())")
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -286,6 +282,9 @@ struct SettingsView: View {
 }
 
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView()
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environmentObject(AppSettings())
+        .environmentObject(DockMonitor())
 }
 
