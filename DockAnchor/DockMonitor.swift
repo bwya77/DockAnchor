@@ -457,7 +457,7 @@ class DockMonitor: NSObject, ObservableObject {
                 print("🔍 Found built-in display type: \(display.name) with resolution \(display.info["Resolution"] ?? "unknown")")
                 if resolution_matches_exactly(actualResolution, display.info["Resolution"]) {
                     print("✅ Found built-in display match: \(display.name)")
-                    return "Built-in Display"
+                    return display.name.contains("Color LCD") ? "Built-in Display" : display.name
                 } else {
                     print("❌ Built-in display resolution doesn't match: actual=\(actualResolution), reported=\(display.info["Resolution"] ?? "unknown")")
                 }
@@ -466,7 +466,7 @@ class DockMonitor: NSObject, ObservableObject {
                 print("🔍 Found internal connection type: \(display.name) with resolution \(display.info["Resolution"] ?? "unknown")")
                 if resolution_matches_exactly(actualResolution, display.info["Resolution"]) {
                     print("✅ Found internal display match: \(display.name)")
-                    return "Built-in Display"
+                    return display.name.contains("Color LCD") ? "Built-in Display" : display.name
                 } else {
                     print("❌ Internal display resolution doesn't match: actual=\(actualResolution), reported=\(display.info["Resolution"] ?? "unknown")")
                 }
@@ -499,7 +499,7 @@ class DockMonitor: NSObject, ObservableObject {
                 if let mainDisplayFlag = display.info["Main Display"], mainDisplayFlag.contains("Yes") {
                     if let resolution = display.info["Resolution"], resolution_matches_exactly(actualResolution, resolution) {
                         print("✅ Found main display flag match: \(display.name) - \(resolution)")
-                        return display.name == "Color LCD" ? "Built-in Display" : display.name
+                        return display.name.contains("Color LCD") ? "Built-in Display" : display.name
                     }
                 }
             }
@@ -645,8 +645,9 @@ class DockMonitor: NSObject, ObservableObject {
         DispatchQueue.main.async {
             self.availableDisplays = newDisplays
             
-            // Update current anchor display
-            self.updateCurrentAnchorDisplay()
+            // Update current anchor display and validate it's still correct
+            self.validateCurrentAnchorDisplay()
+            self.updateAnchoredDisplayName()
         }
     }
     
@@ -765,6 +766,20 @@ class DockMonitor: NSObject, ObservableObject {
                 }
             } else if flags.contains(.enabledFlag) || flags.contains(.disabledFlag) {
                 self.updateAvailableDisplays()
+            } else if flags.contains(.desktopShapeChangedFlag) {
+                // Desktop shape changed - this can indicate primary display change
+                self.updateAvailableDisplays()
+                self.statusMessage = "Display configuration changed - updating displays"
+                
+                // Reset status message after 2 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                    guard let self = self else { return }
+                    if self.isActive {
+                        self.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
+                    } else {
+                        self.statusMessage = "Dock Anchor Ready"
+                    }
+                }
             }
         }
     }

@@ -285,7 +285,7 @@ class MenuBarManager: NSObject, ObservableObject {
         let displaySubmenu = NSMenu()
         for display in dockMonitor.availableDisplays {
             let displayItem = NSMenuItem(
-                title: display.name + (display.isPrimary ? " (Primary)" : ""),
+                title: display.name, // Don't add (Primary) here since it's already in display.name
                 action: #selector(selectDisplay(_:)),
                 keyEquivalent: ""
             )
@@ -357,6 +357,14 @@ class MenuBarManager: NSObject, ObservableObject {
                 self?.statusItem?.button?.toolTip = "DockAnchor - \(message)"
             }
             .store(in: &cancellables)
+        
+        // Update display submenu when available displays change
+        dockMonitor.$availableDisplays
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateDisplaySubmenu()
+            }
+            .store(in: &cancellables)
     }
     
     private func updateStatusMenuItem(_ item: NSMenuItem, isActive: Bool) {
@@ -374,6 +382,30 @@ class MenuBarManager: NSObject, ObservableObject {
                 item.state = displayID == appSettings?.selectedDisplayID ? .on : .off
             }
         }
+    }
+    
+    private func updateDisplaySubmenu() {
+        guard let menu = statusItem?.menu,
+              let displayMenuItem = menu.item(withTitle: "Anchor to Display"),
+              let dockMonitor = dockMonitor,
+              let appSettings = appSettings else { return }
+        
+        // Create new submenu with updated displays
+        let newSubmenu = NSMenu()
+        for display in dockMonitor.availableDisplays {
+            let displayItem = NSMenuItem(
+                title: display.name, // Don't add (Primary) here since it's already in display.name
+                action: #selector(selectDisplay(_:)),
+                keyEquivalent: ""
+            )
+            displayItem.target = self
+            displayItem.representedObject = display.id
+            displayItem.state = display.id == appSettings.selectedDisplayID ? .on : .off
+            newSubmenu.addItem(displayItem)
+        }
+        
+        // Replace the submenu
+        displayMenuItem.submenu = newSubmenu
     }
     
     @objc private func statusItemClicked() {

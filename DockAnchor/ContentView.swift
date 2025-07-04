@@ -127,14 +127,8 @@ struct ContentView: View {
                             set: { appSettings.selectedDisplayID = $0 }
                         )) {
                             ForEach(dockMonitor.availableDisplays, id: \.id) { display in
-                                HStack {
-                                    Text(display.name)
-                                    if display.isPrimary {
-                                        Text("(Primary)")
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                .tag(display.id)
+                                Text(display.name) // Don't add (Primary) here since it's already in display.name
+                                    .tag(display.id)
                             }
                         }
                         .pickerStyle(.menu)
@@ -250,11 +244,7 @@ struct SettingsView: View {
                                     Circle()
                                         .fill(display.id == appSettings.selectedDisplayID ? Color.green : Color.gray)
                                         .frame(width: 8, height: 8)
-                                    Text(display.name)
-                                    if display.isPrimary {
-                                        Text("(Primary)")
-                                            .foregroundColor(.secondary)
-                                    }
+                                    Text(display.name) // Don't add (Primary) here since it's already in display.name
                                     Spacer()
                                 }
                                 .font(.caption)
