@@ -54,6 +54,7 @@ class DockMonitor: NSObject, ObservableObject {
         anchorDisplayID = CGMainDisplayID()
         updateAvailableDisplays()
         detectCurrentDockPosition()
+        setupDisplayConfigurationMonitoring()
         _ = requestAccessibilityPermissions()
     }
     
@@ -69,7 +70,32 @@ class DockMonitor: NSObject, ObservableObject {
     
     func updateAvailableDisplays() {
         availableDisplays = getAllDisplays()
+        validateCurrentAnchorDisplay()
         updateAnchoredDisplayName()
+    }
+    
+    private func validateCurrentAnchorDisplay() {
+        // Check if the current anchor display is still available
+        let isAnchorDisplayAvailable = availableDisplays.contains { $0.id == anchorDisplayID }
+        
+        if !isAnchorDisplayAvailable {
+            // Anchor display is no longer available, switch to primary
+            anchorDisplayID = CGMainDisplayID()
+            statusMessage = "Selected display no longer available - switched to Primary"
+            
+            // Update the settings to reflect the change
+            NotificationCenter.default.post(name: .anchorDisplayChanged, object: anchorDisplayID)
+            
+            // Reset status message after 3 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                guard let self = self else { return }
+                if self.isActive {
+                    self.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
+                } else {
+                    self.statusMessage = "Dock Anchor Ready"
+                }
+            }
+        }
     }
     
     private func updateAnchoredDisplayName() {
@@ -79,10 +105,22 @@ class DockMonitor: NSObject, ObservableObject {
     }
     
     func changeAnchorDisplay(to displayID: CGDirectDisplayID) {
-        anchorDisplayID = displayID
-        updateAnchoredDisplayName()
+        // Validate that the requested display is available
+        let isDisplayAvailable = availableDisplays.contains { $0.id == displayID }
         
-        statusMessage = "Anchor changed to \(anchoredDisplay)"
+        if isDisplayAvailable {
+            anchorDisplayID = displayID
+            updateAnchoredDisplayName()
+            statusMessage = "Anchor changed to \(anchoredDisplay)"
+        } else {
+            // Requested display is not available, use primary instead
+            anchorDisplayID = CGMainDisplayID()
+            updateAnchoredDisplayName()
+            statusMessage = "Requested display not available - using Primary"
+            
+            // Update the settings to reflect the actual change
+            NotificationCenter.default.post(name: .anchorDisplayChanged, object: anchorDisplayID)
+        }
         
         // Reset status message after 3 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
@@ -389,6 +427,7 @@ class DockMonitor: NSObject, ObservableObject {
         let isMainDisplay = displayID == mainDisplayID
         
         print("🔍 Matching display ID \(displayID) with resolution \(actualResolution), isMain: \(isMainDisplay)")
+        print("🔍 Available displays in system_profiler: \(displays.map { $0.name })")
         
         // First priority: Check for Virtual Device/AirPlay for Sidecar displays WITH resolution match
         for display in displays {
@@ -412,12 +451,24 @@ class DockMonitor: NSObject, ObservableObject {
             }
         }
         
-        // Second priority: Check for Built-in displays by Connection Type
+        // Second priority: Check for Built-in displays by Display Type or Connection Type
         for display in displays {
+            if let displayType = display.info["Display Type"], displayType.contains("Built-in") {
+                print("🔍 Found built-in display type: \(display.name) with resolution \(display.info["Resolution"] ?? "unknown")")
+                if resolution_matches_exactly(actualResolution, display.info["Resolution"]) {
+                    print("✅ Found built-in display match: \(display.name)")
+                    return "Built-in Display"
+                } else {
+                    print("❌ Built-in display resolution doesn't match: actual=\(actualResolution), reported=\(display.info["Resolution"] ?? "unknown")")
+                }
+            }
             if let connectionType = display.info["Connection Type"], connectionType.contains("Internal") {
+                print("🔍 Found internal connection type: \(display.name) with resolution \(display.info["Resolution"] ?? "unknown")")
                 if resolution_matches_exactly(actualResolution, display.info["Resolution"]) {
                     print("✅ Found internal display match: \(display.name)")
                     return "Built-in Display"
+                } else {
+                    print("❌ Internal display resolution doesn't match: actual=\(actualResolution), reported=\(display.info["Resolution"] ?? "unknown")")
                 }
             }
         }
@@ -501,11 +552,28 @@ class DockMonitor: NSObject, ObservableObject {
         }
         
         // Check for common scaling scenarios (e.g., Retina displays)
-        // For Sidecar displays, the actual resolution might be scaled
+        // For Retina displays, the actual resolution is often scaled
         if (actualWidth == reportedWidth / 2 && actualHeight == reportedHeight / 2) ||
            (actualWidth * 2 == reportedWidth && actualHeight * 2 == reportedHeight) {
-            print("🔍 Found scaled resolution match")
+            print("🔍 Found scaled resolution match (2x scaling)")
             return true
+        }
+        
+        // For some Retina displays, the scaling might be different
+        // Check if the aspect ratio matches and if one is a reasonable scale of the other
+        let actualAspectRatio = Double(actualWidth) / Double(actualHeight)
+        let reportedAspectRatio = Double(reportedWidth) / Double(reportedHeight)
+        
+        // If aspect ratios are close (within 5% tolerance) and one is a scale of the other
+        if abs(actualAspectRatio - reportedAspectRatio) < 0.05 {
+            let scaleX = Double(reportedWidth) / Double(actualWidth)
+            let scaleY = Double(reportedHeight) / Double(actualHeight)
+            
+            // Check if both scales are similar (within 10% tolerance) and reasonable (between 1.2 and 3.0)
+            if abs(scaleX - scaleY) < 0.1 && scaleX > 1.2 && scaleX < 3.0 {
+                print("🔍 Found scaled resolution match (scale factor: \(scaleX))")
+                return true
+            }
         }
         
         return false
@@ -645,6 +713,62 @@ class DockMonitor: NSObject, ObservableObject {
         return CGMainDisplayID()
     }
     
+    private func setupDisplayConfigurationMonitoring() {
+        // Register for display configuration changes
+        CGDisplayRegisterReconfigurationCallback({ (displayID, flags, userInfo) in
+            guard let userInfo = userInfo else { return }
+            let monitor = Unmanaged<DockMonitor>.fromOpaque(userInfo).takeUnretainedValue()
+            monitor.handleDisplayConfigurationChange(displayID: displayID, flags: flags)
+        }, Unmanaged.passUnretained(self).toOpaque())
+    }
+    
+    private func handleDisplayConfigurationChange(displayID: CGDirectDisplayID, flags: CGDisplayChangeSummaryFlags) {
+        // Handle display configuration changes
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            if flags.contains(.addFlag) {
+                self.statusMessage = "New display detected - updating available displays"
+                self.updateAvailableDisplays()
+                
+                // Reset status message after 3 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                    guard let self = self else { return }
+                    if self.isActive {
+                        self.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
+                    } else {
+                        self.statusMessage = "Dock Anchor Ready"
+                    }
+                }
+            } else if flags.contains(.removeFlag) {
+                self.statusMessage = "Display removed - updating available displays"
+                self.updateAvailableDisplays()
+                
+                // Check if the anchor display was removed
+                if displayID == self.anchorDisplayID {
+                    self.anchorDisplayID = CGMainDisplayID()
+                    self.updateAnchoredDisplayName()
+                    self.statusMessage = "Anchor display removed - switched to Primary"
+                    
+                    // Update the settings to reflect the change
+                    NotificationCenter.default.post(name: .anchorDisplayChanged, object: self.anchorDisplayID)
+                }
+                
+                // Reset status message after 3 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                    guard let self = self else { return }
+                    if self.isActive {
+                        self.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
+                    } else {
+                        self.statusMessage = "Dock Anchor Ready"
+                    }
+                }
+            } else if flags.contains(.enabledFlag) || flags.contains(.disabledFlag) {
+                self.updateAvailableDisplays()
+            }
+        }
+    }
+    
     deinit {
         // Ensure we're on the main thread for cleanup
         if Thread.isMainThread {
@@ -654,6 +778,13 @@ class DockMonitor: NSObject, ObservableObject {
                 self?.stopMonitoring()
             }
         }
+        
+        // Remove display configuration callback
+        CGDisplayRemoveReconfigurationCallback({ (displayID, flags, userInfo) in
+            guard let userInfo = userInfo else { return }
+            let monitor = Unmanaged<DockMonitor>.fromOpaque(userInfo).takeUnretainedValue()
+            monitor.handleDisplayConfigurationChange(displayID: displayID, flags: flags)
+        }, Unmanaged.passUnretained(self).toOpaque())
         
         cancellables.removeAll()
         NotificationCenter.default.removeObserver(self)

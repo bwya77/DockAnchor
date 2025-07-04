@@ -13,26 +13,29 @@ In macOS with multiple monitors, the dock automatically moves to whichever displ
 DockAnchor intercepts mouse movement events and blocks the dock from moving to secondary displays. Unlike scripts that kill and restart the dock (causing flashing and animations), DockAnchor prevents the movement entirely at the system level.
 
 ## Features
-
-![DockAnchor](images/settings_ui.png)
+![DockAnchor](images/monitor_and_block.png)
 
 - **Start app at login**: Automatically launch DockAnchor when you log in
 - **Run in background**: Keep protection active even when the main window is closed
 - **Dock Icon**: Displays a status icon in the macOS dock
 - **Menu Bar Icon**: Shows app icon in the menu bar for quick access
 - **Display Selection**: Choose which display the dock should stay on
-
-
-![DockAnchor](images/monitor_and_block.png)
-
-- **Status Monitoring**: Real-time feedback on protection status
-
-![DockAnchor](images/menu_bar.png)
-
+- **Real-time Display Detection**: Detects when monitors are connected or disconnected
+- **Auto Fallback**: Automatic fallback to Primary display when selected anchor display is removed
 - **Friendly Display Names**: Automatically detects and displays connected monitors with user-friendly names
 - **Check for Updates**: Automatically checks for new releases and updates
-- **Show DockAnchir**: Provides a simple way to access the app's main window
+- **Show DockAnchor**: Provides a simple way to access the app's main window
 - **Anchor Display**: Select which display the dock should remain on
+- **Status Monitoring**: Real-time feedback on protection status
+- **Primary Display Identification**: Displays the primary display in the settings
+
+### Settings
+
+![DockAnchor](images/settings_ui.png)
+
+### Menu Bar Menu
+
+![DockAnchor](images/menu_bar.png)
 
 ## Installation
 

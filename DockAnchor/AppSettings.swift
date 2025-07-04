@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import ServiceManagement
 
 class AppSettings: ObservableObject {
     @Published var startAtLogin: Bool {
@@ -49,7 +50,10 @@ class AppSettings: ObservableObject {
     }
     
     init() {
-        self.startAtLogin = UserDefaults.standard.bool(forKey: "startAtLogin")
+        // Check actual login item status from system
+        let actualLoginStatus = SMAppService.mainApp.status == .enabled
+        self.startAtLogin = actualLoginStatus
+        
         self.runInBackground = UserDefaults.standard.object(forKey: "runInBackground") as? Bool ?? true
         self.showStatusIcon = UserDefaults.standard.object(forKey: "showStatusIcon") as? Bool ?? true
         self.hideFromDock = UserDefaults.standard.object(forKey: "hideFromDock") as? Bool ?? false
@@ -58,16 +62,21 @@ class AppSettings: ObservableObject {
         // Get saved display ID or default to main display
         let savedDisplayID = UserDefaults.standard.object(forKey: "selectedDisplayID") as? Int ?? Int(CGMainDisplayID())
         self.selectedDisplayID = CGDirectDisplayID(savedDisplayID)
+        
+        // Sync UserDefaults with actual system state
+        UserDefaults.standard.set(actualLoginStatus, forKey: "startAtLogin")
     }
     
     private func updateLoginItem() {
-        // For now, we'll use a simple approach
-        // In a full implementation, you would use ServiceManagement framework
-        // or LSSharedFileList APIs properly
-        
-        // This is a placeholder for login item management
-        // The user can manually add the app to login items in System Preferences
-        print("Login item setting changed to: \(startAtLogin)")
+        do {
+            if startAtLogin {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            print("Failed to update login item: \(error)")
+        }
     }
     
 
