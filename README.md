@@ -2,6 +2,8 @@
 
 A macOS app that prevents the dock from moving between displays in multi-monitor setups.
 
+<a href="https://www.producthunt.com/products/dockanchor?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-dockanchor" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=987695&theme=light&t=1751896668914" alt="DockAnchor - stop&#0032;the&#0032;macOS&#0032;dock&#0032;from&#0032;moving&#0032;between&#0032;displays | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+
 ![DockAnchor](images/main_ui.png)
 
 ## Problem
