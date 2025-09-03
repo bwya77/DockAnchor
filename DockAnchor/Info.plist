@@ -34,5 +34,16 @@
 	<string>DockAnchor needs to send Apple Events to control dock positioning and prevent unwanted movement between displays.</string>
 	<key>NSSystemExtensionUsageDescription</key>
 	<string>DockAnchor requires system-level access to monitor mouse events and prevent the dock from moving between displays.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>DockAnchor URL Scheme</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dockanchor</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist> 

@@ -48,6 +48,7 @@ class DockMonitor: NSObject, ObservableObject {
         super.init()
         setupInitialState()
         setupNotificationObservers()
+        setupSleepWakeObservers()
     }
     
     private func setupInitialState() {
@@ -64,6 +65,23 @@ class DockMonitor: NSObject, ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newDisplayID in
                 self?.changeAnchorDisplay(to: newDisplayID)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func setupSleepWakeObservers() {
+        // Listen for system sleep/wake notifications
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleSystemWillSleep()
+            }
+            .store(in: &cancellables)
+        
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleSystemDidWake()
             }
             .store(in: &cancellables)
     }
@@ -183,11 +201,25 @@ class DockMonitor: NSObject, ObservableObject {
         )
         
         guard let eventTap = eventTap else {
-            statusMessage = "Failed to create event tap"
+            statusMessage = "Failed to create event tap - checking accessibility permissions"
+            
+            // Check if accessibility permissions were revoked
+            if !requestAccessibilityPermissions() {
+                statusMessage = "Accessibility permissions required - please grant and try again"
+            } else {
+                statusMessage = "Failed to create event tap - please try again"
+            }
             return
         }
         
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+        guard let runLoopSource = runLoopSource else {
+            statusMessage = "Failed to create run loop source"
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            self.eventTap = nil
+            return
+        }
+        
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
         
@@ -218,6 +250,60 @@ class DockMonitor: NSObject, ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.isActive = false
             self?.statusMessage = "Dock Anchor Stopped"
+        }
+    }
+    
+    private func handleSystemWillSleep() {
+        // System is going to sleep - save current state
+        print("🌙 System will sleep - current monitoring state: \(isActive)")
+        
+        if isActive {
+            statusMessage = "System sleeping..."
+        }
+    }
+    
+    private func handleSystemDidWake() {
+        print("☀️ System did wake - restoring monitoring state")
+        
+        // Give the system a moment to fully wake up
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self else { return }
+            
+            // Update display configuration as monitors may have changed
+            self.updateAvailableDisplays()
+            
+            // If monitoring was active before sleep, restart it
+            if self.isActive {
+                self.statusMessage = "System woke up - restarting protection..."
+                
+                // Stop current monitoring (cleans up potentially invalid event tap)
+                self.forceStopMonitoring()
+                
+                // Restart monitoring after a short delay to ensure system is ready
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.startMonitoring()
+                }
+            } else {
+                self.statusMessage = "System woke up - Dock Anchor Ready"
+            }
+        }
+    }
+    
+    private func forceStopMonitoring() {
+        // Internal method to force stop monitoring without updating UI state
+        // This is used when we need to restart after wake
+        isMonitoring = false
+        
+        // Safely disable and clean up event tap
+        if let eventTap = eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            self.eventTap = nil
+        }
+        
+        // Safely remove run loop source
+        if let runLoopSource = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+            self.runLoopSource = nil
         }
     }
     
@@ -803,5 +889,6 @@ class DockMonitor: NSObject, ObservableObject {
         
         cancellables.removeAll()
         NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 } 
