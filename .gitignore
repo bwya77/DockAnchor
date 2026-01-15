@@ -67,7 +67,7 @@ fastlane/test_output
 
 
 #macOS files
-.DS_STORE
+.DS_Store
 
 #cursor
 .cursor/

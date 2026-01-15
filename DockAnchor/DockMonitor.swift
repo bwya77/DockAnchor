@@ -70,6 +70,8 @@ class DockMonitor: NSObject, ObservableObject {
     
     func updateAvailableDisplays() {
         availableDisplays = getAllDisplays()
+        // Re-detect dock position in case the user changed dock orientation
+        detectCurrentDockPosition()
         validateCurrentAnchorDisplay()
         updateAnchoredDisplayName()
     }
@@ -168,8 +170,12 @@ class DockMonitor: NSObject, ObservableObject {
         
         updateAvailableDisplays()
         
-        let eventMask = CGEventMask(1 << CGEventType.mouseMoved.rawValue)
-        
+        // Include mouse moved + tap-disabled notifications so we can recover if the system disables tap
+        let mouseMovedMask = 1 << CGEventType.mouseMoved.rawValue
+        let disabledByTimeoutMask = 1 << CGEventType.tapDisabledByTimeout.rawValue
+        let disabledByUserInputMask = 1 << CGEventType.tapDisabledByUserInput.rawValue
+        let eventMask = CGEventMask(mouseMovedMask | disabledByTimeoutMask | disabledByUserInputMask)
+
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -177,6 +183,18 @@ class DockMonitor: NSObject, ObservableObject {
             eventsOfInterest: eventMask,
             callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
                 let monitor = Unmanaged<DockMonitor>.fromOpaque(refcon!).takeUnretainedValue()
+                // Recover if the system disabled tap due to timeout or user input
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    if let tap = monitor.eventTap {
+                        CGEvent.tapEnable(tap: tap, enable: true)
+                        DispatchQueue.main.async {
+                            monitor.statusMessage = "Recovered event tap after system disable"
+                        }
+                    }
+                    // Pass the event through so the system continues to receive it
+                    return Unmanaged.passUnretained(event)
+                }
+
                 return monitor.handleMouseEvent(proxy: proxy, type: type, event: event)
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
@@ -311,7 +329,11 @@ class DockMonitor: NSObject, ObservableObject {
         }
         
         // Sort so primary display is first
-        displays.sort { $0.isPrimary && !$1.isPrimary }
+        displays.sort { display1, display2 in
+            if display1.isPrimary && !display2.isPrimary { return true }
+            if !display1.isPrimary && display2.isPrimary { return false }
+            return display1.frame.minX < display2.frame.minX
+        }
         
         return displays
     }
