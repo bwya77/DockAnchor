@@ -344,6 +344,7 @@ struct ContentView: View {
     @State private var showingNewProfile = false
     @State private var editingProfile: DockProfile?
     @State private var newProfileName = ""
+    @State private var showingPermissionHelp = false
 
     private var statusColor: Color {
         if dockMonitor.statusMessage.contains("Blocked") {
@@ -393,7 +394,21 @@ struct ContentView: View {
                     Spacer()
                 }
 
-                if !dockMonitor.isActive {
+                if dockMonitor.needsPermissionReset || dockMonitor.statusMessage.lowercased().contains("permission") {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("Accessibility permission required")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button("Help") {
+                            showingPermissionHelp = true
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                    }
+                } else if !dockMonitor.isActive {
                     HStack {
                         Image(systemName: "exclamationmark.triangle")
                             .foregroundColor(.orange)
@@ -533,9 +548,21 @@ struct ContentView: View {
                 .environmentObject(appSettings)
                 .preferredColorScheme(appSettings.appTheme.colorScheme)
         }
+        .sheet(isPresented: $showingPermissionHelp) {
+            PermissionHelpSheet(dockMonitor: dockMonitor)
+                .preferredColorScheme(appSettings.appTheme.colorScheme)
+        }
         .onAppear {
-            // Request permissions on startup
-            _ = dockMonitor.requestAccessibilityPermissions()
+            // Check permissions on startup and show help if not granted
+            let hasPermissions = dockMonitor.requestAccessibilityPermissions()
+            if !hasPermissions {
+                // Small delay to let the UI appear first
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showingPermissionHelp = true
+                }
+                // Don't perform any operations that require accessibility permissions
+                return
+            }
             // Update available displays
             dockMonitor.updateAvailableDisplays()
             // Set the anchor display from settings (using UUID for stable identification)
@@ -697,6 +724,79 @@ struct SettingsView: View {
         .onAppear {
             dockMonitor.updateAvailableDisplays()
         }
+    }
+}
+
+struct PermissionHelpSheet: View {
+    @ObservedObject var dockMonitor: DockMonitor
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Text("Accessibility Permission")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer()
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.horizontal)
+            .padding(.top, 16)
+
+            VStack(alignment: .leading, spacing: 16) {
+                Text("DockAnchor requires Accessibility permission to monitor mouse movement and keep your dock anchored.")
+                    .font(.body)
+
+                Divider()
+
+                Text("How to enable:")
+                    .font(.headline)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Click \"Open Accessibility Settings\" below", systemImage: "1.circle.fill")
+                    Label("Find DockAnchor in the list", systemImage: "2.circle.fill")
+                    Label("Toggle it ON", systemImage: "3.circle.fill")
+                }
+                .font(.body)
+
+                Divider()
+
+                Text("If permission doesn't work after an update:")
+                    .font(.headline)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Remove DockAnchor from the list (- button)", systemImage: "1.circle")
+                    Label("Re-add it (+ button)", systemImage: "2.circle")
+                    Label("Toggle it ON", systemImage: "3.circle")
+                }
+                .font(.body)
+                .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(action: {
+                    dockMonitor.openAccessibilityPreferences()
+                }) {
+                    HStack {
+                        Image(systemName: "gearshape.fill")
+                        Text("Open Accessibility Settings")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 16)
+        }
+        .frame(width: 380, height: 420)
+        .background(.background)
     }
 }
 

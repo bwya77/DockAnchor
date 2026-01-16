@@ -90,6 +90,7 @@ class DockMonitor: NSObject, ObservableObject {
     @Published var anchoredDisplay: String = "Primary"
     @Published var statusMessage = "Dock Anchor Ready"
     @Published var availableDisplays: [DisplayInfo] = []
+    @Published var needsPermissionReset = false
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -97,6 +98,7 @@ class DockMonitor: NSObject, ObservableObject {
     private var anchorDisplayUUID: String = ""  // Hardware UUID for stable anchor tracking
     private var dockPosition: DockPosition = .bottom
     private var cancellables = Set<AnyCancellable>()
+    private var permissionCheckTimer: Timer?
 
     /// Gets the current anchor display ID (derived from UUID)
     private var anchorDisplayID: CGDirectDisplayID {
@@ -373,18 +375,80 @@ class DockMonitor: NSObject, ObservableObject {
     }
     
     func requestAccessibilityPermissions() -> Bool {
-        let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue(): true]
-        let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
-        
+        // Check if already trusted (without prompting)
+        let trusted = AXIsProcessTrusted()
+
         if !trusted {
             DispatchQueue.main.async { [weak self] in
                 self?.statusMessage = "Accessibility permissions required"
             }
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.needsPermissionReset = false
+            }
         }
-        
+
         return trusted
     }
-    
+
+    /// Prompts for accessibility permissions by opening System Preferences
+    /// Note: On modern macOS, the system dialog often just opens System Preferences
+    /// without actually adding the app - users must manually add it with the + button
+    func promptForAccessibilityPermissions() {
+        // Use the string key directly to avoid takeRetainedValue() issues
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
+    }
+
+    /// Checks accessibility permissions without prompting
+    private func checkAccessibilityPermissions() -> Bool {
+        return AXIsProcessTrusted()
+    }
+
+    /// Opens System Preferences to the Accessibility pane
+    func openAccessibilityPreferences() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    /// Starts the timer that periodically checks if permissions are still valid
+    private func startPermissionMonitoring() {
+        // Check every 2 seconds for permission changes
+        permissionCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.verifyPermissionsAndTapValidity()
+        }
+    }
+
+    /// Stops the permission monitoring timer
+    private func stopPermissionMonitoring() {
+        permissionCheckTimer?.invalidate()
+        permissionCheckTimer = nil
+    }
+
+    /// Verifies that accessibility permissions are still granted and event tap is valid
+    private func verifyPermissionsAndTapValidity() {
+        guard isMonitoring else { return }
+
+        // Check if accessibility permissions are still granted
+        if !checkAccessibilityPermissions() {
+            DispatchQueue.main.async { [weak self] in
+                self?.statusMessage = "Accessibility permissions revoked - stopping monitoring"
+                self?.stopMonitoring()
+            }
+            return
+        }
+
+        // Check if the event tap is still valid
+        if let tap = eventTap, !CFMachPortIsValid(tap) {
+            DispatchQueue.main.async { [weak self] in
+                self?.statusMessage = "Event tap invalidated - stopping monitoring"
+                self?.stopMonitoring()
+            }
+            return
+        }
+    }
+
     func startMonitoring() {
         guard requestAccessibilityPermissions() else {
             statusMessage = "Please grant accessibility permissions in System Preferences"
@@ -426,7 +490,11 @@ class DockMonitor: NSObject, ObservableObject {
         )
         
         guard let eventTap = eventTap else {
-            statusMessage = "Failed to create event tap"
+            // Event tap creation failed even though permissions appeared granted.
+            // This usually means the permission entry is stale (app was updated).
+            // The user needs to remove and re-add the app in Accessibility settings.
+            needsPermissionReset = true
+            statusMessage = "Permission needs reset - remove and re-add app in Accessibility settings"
             return
         }
         
@@ -435,13 +503,15 @@ class DockMonitor: NSObject, ObservableObject {
         CGEvent.tapEnable(tap: eventTap, enable: true)
         
         isMonitoring = true
+        startPermissionMonitoring()
         DispatchQueue.main.async { [weak self] in
             self?.isActive = true
             self?.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
         }
     }
-    
+
     func stopMonitoring() {
+        stopPermissionMonitoring()
         guard isMonitoring else { return }
 
         isMonitoring = false

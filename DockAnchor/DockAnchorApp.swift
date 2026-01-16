@@ -115,23 +115,27 @@ class ApplicationDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // This is the most critical piece - ensures menu bar icon appears
         menuBarManager.setup(appSettings: appSettings, dockMonitor: dockMonitor, updateChecker: updateChecker)
 
-        // Set the anchor display from settings (using UUID for stable identification)
-        dockMonitor.changeAnchorDisplay(toUUID: appSettings.selectedDisplayUUID)
-
         // Set initial activation policy
         updateActivationPolicy()
 
-        // Auto-start monitoring if enabled (with a small delay for system stability)
-        if appSettings.runInBackground {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.dockMonitor.startMonitoring()
-            }
-        }
+        // Only perform accessibility-dependent operations if permissions are granted
+        let hasPermissions = dockMonitor.requestAccessibilityPermissions()
+        if hasPermissions {
+            // Set the anchor display from settings (using UUID for stable identification)
+            dockMonitor.changeAnchorDisplay(toUUID: appSettings.selectedDisplayUUID)
 
-        // Auto-relocate dock to anchored display on launch if enabled
-        if appSettings.autoRelocateDock {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                self?.dockMonitor.relocateDockToAnchoredDisplay()
+            // Auto-start monitoring if enabled (with a small delay for system stability)
+            if appSettings.runInBackground {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    self?.dockMonitor.startMonitoring()
+                }
+            }
+
+            // Auto-relocate dock to anchored display on launch if enabled
+            if appSettings.autoRelocateDock {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                    self?.dockMonitor.relocateDockToAnchoredDisplay()
+                }
             }
         }
 
