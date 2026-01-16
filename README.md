@@ -13,7 +13,7 @@ A macOS app that prevents the dock from moving between displays in multi-monitor
 
 ## Download
 
-### Download from Releases
+### Install from Releases
 
  👉 [**Download Apple Signed App**](https://github.com/bwya77/DockAnchor/releases/latest)
 
