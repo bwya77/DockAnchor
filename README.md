@@ -11,7 +11,30 @@ A macOS app that prevents the dock from moving between displays in multi-monitor
     </tr>
   </table>
 
+## Download
+
+### Download from Releases
+
  👉 [**Download Apple Signed App**](https://github.com/bwya77/DockAnchor/releases/latest)
+
+### Install via Homebrew
+
+1. Tap the repository:
+
+```bash
+brew tap bwya77/tap
+```
+2. Install DockAnchor:
+
+```bash
+brew install --cask dockanchor
+```
+
+3. (Optional) To upgrade later:
+
+```bash
+brew upgrade --cask dockanchor
+```
 
 ## Problem
 
