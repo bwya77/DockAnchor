@@ -10,6 +10,8 @@ struct GitHubRelease: Codable {
 }
 
 class UpdateChecker: ObservableObject {
+    static let shared = UpdateChecker()
+
     @Published var isLoading = false
     @Published var lastChecked: Date?
     
@@ -41,22 +43,31 @@ class UpdateChecker: ObservableObject {
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
-                
+
                 if let error = error {
                     print("Update check failed: \(error)")
+                    if self?.isManualCheck == true {
+                        self?.showErrorNotification(message: "Could not check for updates. Please check your internet connection.")
+                    }
                     return
                 }
-                
+
                 guard let data = data else {
                     print("No data received from GitHub API")
+                    if self?.isManualCheck == true {
+                        self?.showErrorNotification(message: "Could not check for updates. No response from server.")
+                    }
                     return
                 }
-                
+
                 do {
                     let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
                     self?.processRelease(release)
                 } catch {
                     print("Failed to decode GitHub release: \(error)")
+                    if self?.isManualCheck == true {
+                        self?.showErrorNotification(message: "Could not check for updates. Invalid response from server.")
+                    }
                 }
             }
         }.resume()
@@ -127,6 +138,15 @@ class UpdateChecker: ObservableObject {
         alert.messageText = "No Updates Available"
         alert.informativeText = "You are already running the latest version of DockAnchor (\(currentVersion))."
         alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private func showErrorNotification(message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Update Check Failed"
+        alert.informativeText = message
+        alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }

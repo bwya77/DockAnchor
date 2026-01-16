@@ -71,3 +71,9 @@ fastlane/test_output
 
 #cursor
 .cursor/
+
+#claude
+agents/
+docs/
+CLAUDE.md
+.claude
