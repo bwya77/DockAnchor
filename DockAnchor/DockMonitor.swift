@@ -111,6 +111,12 @@ class DockMonitor: NSObject, ObservableObject {
     /// Magic value to identify our synthetic events (so we don't block our own events)
     private let syntheticEventMarker: Int64 = 0xD0C4A5C4 // "DOCKASCR" in hex-ish
     
+    // MARK: - Hot Corner Support
+    /// Track if we're currently in a corner zone
+    private var currentlyInCorner = false
+    /// Size of corner zones for hot corner detection (1px to match exact hot corner trigger)
+    private let cornerZoneSize: CGFloat = 1
+    
     enum DockPosition {
         case bottom, left, right
     }
@@ -824,25 +830,130 @@ class DockMonitor: NSObject, ObservableObject {
         for display in availableDisplays {
             if display.id == anchorDisplayID { continue }
             
+            // First check if we're in a corner zone (for hot corner support)
+            if isLocationInCornerZone(location: location, for: display) {
+                // Hot corner strategy:
+                // 1. Allow the first event to trigger hot corner
+                // 2. Immediately warp cursor slightly away from edge to prevent dock trigger
+                // 3. Block all subsequent events
+                
+                if !currentlyInCorner {
+                    // Just entered corner zone
+                    currentlyInCorner = true
+                    
+                    // Schedule cursor warp away from edge (after hot corner triggers)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) { [weak self] in
+                        self?.warpCursorAwayFromEdge(from: location, display: display)
+                    }
+                    
+                    return false  // Allow this event for hot corner activation
+                }
+                
+                // Block all subsequent events in corner
+                return true
+            }
+            
+            // Check regular dock trigger zone (non-corner areas)
             let triggerZone = getDockTriggerZone(for: display)
             if triggerZone.contains(location) {
+                currentlyInCorner = false
+                
                 DispatchQueue.main.async { [weak self] in
                     self?.statusMessage = "Blocked dock movement attempt to \(display.name)"
-                    
-                    // Reset status message after 2 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                        guard let self = self else { return }
-                        self.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
+                        self?.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
                     }
                 }
                 return true
             }
         }
         
+        // Not in any trigger zone - single reset point
+        currentlyInCorner = false
         return false
     }
     
+    /// Warps the cursor slightly away from the screen edge to prevent dock trigger
+    private func warpCursorAwayFromEdge(from location: CGPoint, display: DisplayInfo) {
+        let offset: CGFloat = 15  // Move 15px away from edge
+        var newLocation = location
+        
+        switch dockPosition {
+        case .bottom:
+            newLocation.y = display.frame.maxY - offset
+        case .left:
+            newLocation.x = display.frame.minX + offset
+        case .right:
+            newLocation.x = display.frame.maxX - offset
+        }
+        
+        CGWarpMouseCursorPosition(newLocation)
+    }
+    
+    /// Checks if the location is in a corner zone of the display (for hot corner support)
+    private func isLocationInCornerZone(location: CGPoint, for display: DisplayInfo) -> Bool {
+        let corners = getCornerZones(for: display)
+        return corners.contains { $0.contains(location) }
+    }
+    
+    /// Returns the corner zones for a display based on dock position
+    private func getCornerZones(for display: DisplayInfo) -> [CGRect] {
+        let size = cornerZoneSize
+        var corners: [CGRect] = []
+        
+        switch dockPosition {
+        case .bottom:
+            // Bottom-left corner
+            corners.append(CGRect(
+                x: display.frame.minX,
+                y: display.frame.maxY - size,
+                width: size,
+                height: size
+            ))
+            // Bottom-right corner
+            corners.append(CGRect(
+                x: display.frame.maxX - size,
+                y: display.frame.maxY - size,
+                width: size,
+                height: size
+            ))
+        case .left:
+            // Top-left corner
+            corners.append(CGRect(
+                x: display.frame.minX,
+                y: display.frame.minY,
+                width: size,
+                height: size
+            ))
+            // Bottom-left corner
+            corners.append(CGRect(
+                x: display.frame.minX,
+                y: display.frame.maxY - size,
+                width: size,
+                height: size
+            ))
+        case .right:
+            // Top-right corner
+            corners.append(CGRect(
+                x: display.frame.maxX - size,
+                y: display.frame.minY,
+                width: size,
+                height: size
+            ))
+            // Bottom-right corner
+            corners.append(CGRect(
+                x: display.frame.maxX - size,
+                y: display.frame.maxY - size,
+                width: size,
+                height: size
+            ))
+        }
+        
+        return corners
+    }
+    
     private func getDockTriggerZone(for display: DisplayInfo) -> CGRect {
+        // Full edge trigger zone (corners are handled separately with time-based logic)
         switch dockPosition {
         case .bottom:
             return CGRect(
