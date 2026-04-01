@@ -607,95 +607,132 @@ struct SettingsView: View {
             Divider()
 
             // Content
-            VStack(spacing: 10) {
-                // Startup & Background
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Startup & Background")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Toggle("Start at Login", isOn: $appSettings.startAtLogin)
-                        .font(.callout)
-                        .toggleStyle(.switch)
-                    Toggle("Run in Background", isOn: $appSettings.runInBackground)
-                        .font(.callout)
-                        .toggleStyle(.switch)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
-
-                // Dock Behavior
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Dock Behavior")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Toggle("Auto-Move Dock", isOn: $appSettings.autoRelocateDock)
-                        .font(.callout)
-                        .toggleStyle(.switch)
-                    HStack {
-                        Text("Default Anchor")
+            ScrollView {
+                VStack(spacing: 10) {
+                    // Startup & Background
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Startup & Background")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Toggle("Start at Login", isOn: $appSettings.startAtLogin)
                             .font(.callout)
-                        Spacer()
-                        Picker("", selection: $appSettings.defaultAnchorDisplay) {
-                            ForEach(DefaultAnchorDisplay.allCases, id: \.self) { display in
-                                Text(display.rawValue).tag(display)
+                            .toggleStyle(.switch)
+                        Toggle("Run in Background", isOn: $appSettings.runInBackground)
+                            .font(.callout)
+                            .toggleStyle(.switch)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .cardStyle()
+
+                    // Dock Behavior
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Dock Behavior")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Toggle("Auto-Move Dock", isOn: $appSettings.autoRelocateDock)
+                            .font(.callout)
+                            .toggleStyle(.switch)
+                        HStack {
+                            Text("Default Anchor")
+                                .font(.callout)
+                            Spacer()
+                            Picker("", selection: $appSettings.defaultAnchorDisplay) {
+                                ForEach(DefaultAnchorDisplay.allCases, id: \.self) { display in
+                                    Text(display.rawValue).tag(display)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(width: 150)
+                        }
+                        Text("Used when anchor display is unavailable")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .cardStyle()
+
+                    // Cursor Position
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Cursor Position")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        HStack {
+                            Picker("Position", selection: $appSettings.cursorPosition) {
+                                ForEach(CursorXPosition.allCases, id: \.self) { position in
+                                    Text(position.rawValue).tag(position)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .frame(width: 220)
+                            Spacer()
+                        }
+                        if appSettings.cursorPosition != .center {
+                            HStack {
+                                Text("Offset")
+                                    .font(.callout)
+                                Spacer()
+                                TextField("", value: $appSettings.cursorOffset, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 80)
+                                Text("px")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         }
-                        .pickerStyle(.menu)
-                        .frame(width: 150)
+                        Text("Horizontal cursor position when relocating dock")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    Text("Used when anchor display is unavailable")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .cardStyle()
 
-                // Interface
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Interface")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Toggle("Show Menu Bar Icon", isOn: $appSettings.showStatusIcon)
-                        .font(.callout)
-                        .toggleStyle(.switch)
-                    Toggle("Hide from Dock", isOn: $appSettings.hideFromDock)
-                        .font(.callout)
-                        .toggleStyle(.switch)
-                    HStack {
-                        Text("Theme")
+                    // Interface
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Interface")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Toggle("Show Menu Bar Icon", isOn: $appSettings.showStatusIcon)
                             .font(.callout)
-                        Spacer()
-                        Picker("", selection: $appSettings.appTheme) {
-                            ForEach(AppTheme.allCases, id: \.self) { theme in
-                                Text(theme.rawValue).tag(theme)
+                            .toggleStyle(.switch)
+                        Toggle("Hide from Dock", isOn: $appSettings.hideFromDock)
+                            .font(.callout)
+                            .toggleStyle(.switch)
+                        HStack {
+                            Text("Theme")
+                                .font(.callout)
+                            Spacer()
+                            Picker("", selection: $appSettings.appTheme) {
+                                ForEach(AppTheme.allCases, id: \.self) { theme in
+                                    Text(theme.rawValue).tag(theme)
+                                }
                             }
+                            .pickerStyle(.segmented)
+                            .frame(width: 180)
                         }
-                        .pickerStyle(.segmented)
-                        .frame(width: 180)
                     }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .cardStyle()
 
-                // Display Arrangement
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Display Arrangement")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    DisplayArrangementView(
-                        displays: dockMonitor.availableDisplays,
-                        selectedDisplayUUID: $appSettings.selectedDisplayUUID,
-                        maxHeight: 60
-                    )
-                    Text("\(dockMonitor.availableDisplays.count) display(s) detected")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // Display Arrangement
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Display Arrangement")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        DisplayArrangementView(
+                            displays: dockMonitor.availableDisplays,
+                            selectedDisplayUUID: $appSettings.selectedDisplayUUID,
+                            maxHeight: 60
+                        )
+                        Text("\(dockMonitor.availableDisplays.count) display(s) detected")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .cardStyle()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardStyle()
+                .padding(.horizontal)
+                .padding(.top, 12)
             }
-            .padding(.horizontal)
-            .padding(.top, 12)
 
             Spacer()
 

@@ -12,6 +12,7 @@ import Carbon
 import CoreGraphics
 import Combine
 import IOKit
+import SwiftUI
 
 // MARK: - EDID Serial Number Extraction
 
@@ -747,10 +748,21 @@ class DockMonitor: NSObject, ObservableObject {
     private func getApproachPoint(for display: DisplayInfo) -> CGPoint {
         let frame = display.frame
         let offset: CGFloat = 50 // Start 50 pixels from the edge
+        let xPosition = CursorXPosition(rawValue: AppSettings.shared.cursorPosition.rawValue) ?? .center
+        let offsetValue = CGFloat(AppSettings.shared.cursorOffset)
 
         switch dockPosition {
         case .bottom:
-            return CGPoint(x: frame.midX, y: frame.maxY - offset)
+            var xPos: CGFloat
+            switch xPosition {
+            case .left:
+                xPos = frame.minX + offsetValue
+            case .center:
+                xPos = frame.midX
+            case .right:
+                xPos = frame.maxX - offsetValue
+            }
+            return CGPoint(x: xPos, y: frame.maxY - offset)
         case .left:
             return CGPoint(x: frame.minX + offset, y: frame.midY)
         case .right:
@@ -762,10 +774,21 @@ class DockMonitor: NSObject, ObservableObject {
     private func getPastEdgePoint(for display: DisplayInfo) -> CGPoint {
         let frame = display.frame
         let overshoot: CGFloat = 20 // Try to move 20 pixels past the edge
+        let xPosition = CursorXPosition(rawValue: AppSettings.shared.cursorPosition.rawValue) ?? .center
+        let offsetValue = CGFloat(AppSettings.shared.cursorOffset)
 
         switch dockPosition {
         case .bottom:
-            return CGPoint(x: frame.midX, y: frame.maxY + overshoot)
+            var xPos: CGFloat
+            switch xPosition {
+            case .left:
+                xPos = frame.minX + offsetValue
+            case .center:
+                xPos = frame.midX
+            case .right:
+                xPos = frame.maxX - offsetValue
+            }
+            return CGPoint(x: xPos, y: frame.maxY + overshoot)
         case .left:
             return CGPoint(x: frame.minX - overshoot, y: frame.midY)
         case .right:
@@ -776,11 +799,22 @@ class DockMonitor: NSObject, ObservableObject {
     /// Gets the point in the dock trigger zone for a display
     private func getDockTriggerPoint(for display: DisplayInfo) -> CGPoint {
         let frame = display.frame
+        let xPosition = CursorXPosition(rawValue: AppSettings.shared.cursorPosition.rawValue) ?? .center
+        let offsetValue = CGFloat(AppSettings.shared.cursorOffset)
 
         switch dockPosition {
         case .bottom:
-            // Bottom center of the display, at the very edge
-            return CGPoint(x: frame.midX, y: frame.maxY - 1)
+            var xPos: CGFloat
+            switch xPosition {
+            case .left:
+                xPos = frame.minX + offsetValue
+            case .center:
+                xPos = frame.midX
+            case .right:
+                xPos = frame.maxX - offsetValue
+            }
+            // Bottom edge of the display
+            return CGPoint(x: xPos, y: frame.maxY - 1)
         case .left:
             // Left center of the display, at the very edge
             return CGPoint(x: frame.minX + 1, y: frame.midY)

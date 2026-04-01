@@ -62,6 +62,7 @@ DockAnchor intercepts mouse movement events and blocks the dock from moving to s
 - **Check for Updates**: Automatically checks for new releases and updates
 - **Show DockAnchor**: Provides a simple way to access the app's main window
 - **Anchor Display**: Select which display the dock should remain on
+- **Cursor Position**: Customize horizontal cursor position (Left/Center/Right) with adjustable offset when relocating dock
 - **Status Monitoring**: Real-time feedback on protection status
 - **Primary Display Identification**: Displays the primary display in the settings
 - **App Theme**: Supports light, dark, and system themes
