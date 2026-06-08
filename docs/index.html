@@ -25,9 +25,7 @@
             --gradient-start: #3b82f6;
             --gradient-end: #8b5cf6;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
@@ -35,8 +33,6 @@
             line-height: 1.6;
             overflow-x: hidden;
         }
-
-        /* Ambient glow */
         body::before {
             content: '';
             position: fixed;
@@ -49,342 +45,57 @@
             pointer-events: none;
             z-index: 0;
         }
-
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 24px;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* Nav */
-        nav {
-            padding: 20px 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 700;
-            font-size: 1.2rem;
-            color: var(--text);
-            text-decoration: none;
-        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+        nav { padding: 20px 0; display: flex; align-items: center; justify-content: space-between; }
+        .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.2rem; color: var(--text); text-decoration: none; }
         .nav-brand svg { width: 28px; height: 28px; }
         .nav-links { display: flex; gap: 28px; align-items: center; }
-        .nav-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
         .nav-links a:hover { color: var(--text); }
-
-        /* Hero */
-        .hero {
-            text-align: center;
-            padding: 80px 0 60px;
-        }
-        .hero-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--accent-glow);
-            border: 1px solid rgba(59, 130, 246, 0.25);
-            border-radius: 100px;
-            padding: 6px 16px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--accent);
-            margin-bottom: 24px;
-        }
-        .hero h1 {
-            font-size: clamp(2.5rem, 6vw, 4rem);
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            line-height: 1.1;
-            margin-bottom: 16px;
-        }
-        .hero h1 .gradient {
-            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .hero p {
-            font-size: 1.15rem;
-            color: var(--text-muted);
-            max-width: 560px;
-            margin: 0 auto 36px;
-        }
-        .hero-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 28px;
-            border-radius: 12px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-            color: #fff;
-            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
-        }
-        .btn-primary:hover {
-            box-shadow: 0 6px 30px rgba(59, 130, 246, 0.45);
-            transform: translateY(-1px);
-        }
-        .btn-secondary {
-            background: var(--bg-card);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-        .btn-secondary:hover {
-            background: var(--bg-card-hover);
-            border-color: #33334a;
-        }
+        .hero { text-align: center; padding: 80px 0 40px; }
+        .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-glow); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 100px; padding: 6px 16px; font-size: 0.8rem; font-weight: 500; color: var(--accent); margin-bottom: 24px; }
+        .hero h1 { font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; }
+        .hero h1 .gradient { background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero p { font-size: 1.15rem; color: var(--text-muted); max-width: 560px; margin: 0 auto 36px; }
+        .hero-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border-radius: 12px; font-size: 0.95rem; font-weight: 600; text-decoration: none; transition: all 0.2s; border: none; cursor: pointer; }
+        .btn-primary { background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)); color: #fff; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); }
+        .btn-primary:hover { box-shadow: 0 6px 30px rgba(59, 130, 246, 0.45); transform: translateY(-1px); }
+        .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg-card-hover); border-color: #33334a; }
         .btn svg { width: 18px; height: 18px; }
-
-        /* Screenshots */
-        .screenshots {
-            padding: 40px 0 80px;
-        }
-        .screenshot-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        .screenshot-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 16px;
-            transition: all 0.3s;
-        }
-        .screenshot-card:hover {
-            border-color: rgba(59, 130, 246, 0.3);
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-        }
-        .screenshot-card img {
-            width: 100%;
-            border-radius: 10px;
-            display: block;
-        }
-        .screenshot-card .caption {
-            text-align: center;
-            margin-top: 12px;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        /* Features */
-        .features {
-            padding: 80px 0;
-        }
-        .section-header {
-            text-align: center;
-            margin-bottom: 48px;
-        }
-        .section-header h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 12px;
-        }
-        .section-header p {
-            color: var(--text-muted);
-            font-size: 1.05rem;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-        }
-        .feature-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 24px;
-            transition: all 0.2s;
-        }
-        .feature-card:hover {
-            border-color: rgba(59, 130, 246, 0.2);
-            background: var(--bg-card-hover);
-        }
-        .feature-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: var(--accent-glow);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 14px;
-            font-size: 1.2rem;
-        }
-        .feature-card h3 {
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-        .feature-card p {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            line-height: 1.5;
-        }
-
-        /* How it works */
-        .how-it-works {
-            padding: 80px 0;
-        }
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-top: 48px;
-        }
-        .step {
-            text-align: center;
-            padding: 32px 20px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-        }
-        .step-number {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1.2rem;
-            margin-bottom: 16px;
-        }
-        .step h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        .step p {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        /* Install */
-        .install {
-            padding: 80px 0;
-        }
-        .install-options {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            max-width: 700px;
-            margin: 48px auto 0;
-        }
-        .install-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 28px;
-            text-align: center;
-        }
-        .install-card h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        .install-card p {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-        }
-        .code-block {
-            background: #0d0d14;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            font-size: 0.8rem;
-            color: var(--accent);
-            text-align: left;
-            overflow-x: auto;
-        }
-
-        /* CTA */
-        .cta {
-            padding: 80px 0;
-            text-align: center;
-        }
-        .cta-box {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08));
-            border: 1px solid rgba(59, 130, 246, 0.2);
-            border-radius: 20px;
-            padding: 56px 32px;
-        }
-        .cta-box h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-        .cta-box p {
-            color: var(--text-muted);
-            font-size: 1.05rem;
-            margin-bottom: 28px;
-        }
-
-        /* Footer */
-        footer {
-            padding: 40px 0;
-            border-top: 1px solid var(--border);
-            text-align: center;
-        }
-        footer p {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-        footer a {
-            color: var(--accent);
-            text-decoration: none;
-        }
+        .hero-screenshot { max-width: 520px; margin: 48px auto 0; }
+        .hero-screenshot img { width: 100%; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.08); }
+        .features { padding: 100px 0 80px; }
+        .section-header { text-align: center; margin-bottom: 48px; }
+        .section-header h2 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px; }
+        .section-header p { color: var(--text-muted); font-size: 1.05rem; max-width: 500px; margin: 0 auto; }
+        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; transition: all 0.2s; }
+        .feature-card:hover { border-color: rgba(59, 130, 246, 0.2); background: var(--bg-card-hover); }
+        .feature-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 1.2rem; }
+        .feature-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; }
+        .feature-card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+        .install { padding: 80px 0; }
+        .install-options { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 700px; margin: 48px auto 0; }
+        .install-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; text-align: center; }
+        .install-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+        .install-card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; }
+        .code-block { background: #0d0d14; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; color: var(--accent); text-align: left; }
+        .cta { padding: 80px 0; text-align: center; }
+        .cta-box { background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 20px; padding: 56px 32px; }
+        .cta-box h2 { font-size: 2rem; font-weight: 700; margin-bottom: 12px; }
+        .cta-box p { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 28px; }
+        footer { padding: 40px 0; border-top: 1px solid var(--border); text-align: center; }
+        footer p { color: var(--text-muted); font-size: 0.85rem; }
+        footer a { color: var(--accent); text-decoration: none; }
         footer a:hover { text-decoration: underline; }
-        .footer-links {
-            display: flex;
-            gap: 24px;
-            justify-content: center;
-            margin-bottom: 16px;
-        }
-
-        /* Responsive */
+        .footer-links { display: flex; gap: 24px; justify-content: center; margin-bottom: 16px; }
         @media (max-width: 768px) {
-            .feature-grid, .steps, .install-options { grid-template-columns: 1fr; }
-            .screenshot-grid { grid-template-columns: 1fr; max-width: 400px; }
+            .feature-grid, .install-options { grid-template-columns: 1fr; }
             .nav-links { gap: 16px; }
             .hero { padding: 60px 0 40px; }
+            .hero-screenshot { max-width: 360px; }
         }
     </style>
 </head>
@@ -401,7 +112,6 @@
             </a>
             <div class="nav-links">
                 <a href="#features">Features</a>
-                <a href="#how-it-works">How It Works</a>
                 <a href="#install">Install</a>
                 <a href="https://github.com/bwya77/DockAnchor" target="_blank">GitHub</a>
             </div>
@@ -415,7 +125,7 @@
                 Free &amp; Open Source for macOS
             </div>
             <h1>Keep your dock<br><span class="gradient">exactly where you want it</span></h1>
-            <p>DockAnchor prevents the macOS dock from jumping between displays. Anchor it to any monitor and forget about it.</p>
+            <p>DockAnchor prevents the macOS dock from jumping between displays in multi-monitor setups. Anchor it to any monitor and forget about it.</p>
             <div class="hero-buttons">
                 <a href="https://github.com/bwya77/DockAnchor/releases/latest" class="btn btn-primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -426,28 +136,8 @@
                     View on GitHub
                 </a>
             </div>
-        </div>
-    </section>
-
-    <section class="screenshots">
-        <div class="container">
-            <div class="screenshot-grid">
-                <div class="screenshot-card">
-                    <img src="https://raw.githubusercontent.com/bwya77/DockAnchor/main/images/main_ui.png" alt="DockAnchor Dark Mode" loading="lazy">
-                    <div class="caption">Dark Mode — Protection Active</div>
-                </div>
-                <div class="screenshot-card">
-                    <img src="https://raw.githubusercontent.com/bwya77/DockAnchor/main/images/main_ui2.png" alt="DockAnchor Light Mode" loading="lazy">
-                    <div class="caption">Light Mode — Blocking Dock Movement</div>
-                </div>
-                <div class="screenshot-card">
-                    <img src="https://raw.githubusercontent.com/bwya77/DockAnchor/main/images/settings_ui.png" alt="DockAnchor Settings" loading="lazy">
-                    <div class="caption">Settings &amp; Display Arrangement</div>
-                </div>
-                <div class="screenshot-card">
-                    <img src="https://raw.githubusercontent.com/bwya77/DockAnchor/main/images/menu_bar.png" alt="DockAnchor Menu Bar" loading="lazy">
-                    <div class="caption">Menu Bar Quick Access</div>
-                </div>
+            <div class="hero-screenshot">
+                <img src="https://raw.githubusercontent.com/bwya77/DockAnchor/main/images/main_ui.png" alt="DockAnchor">
             </div>
         </div>
     </section>
@@ -456,79 +146,38 @@
         <div class="container">
             <div class="section-header">
                 <h2>Everything you need</h2>
-                <p>Simple to use, powerful under the hood. DockAnchor just works.</p>
+                <p>Simple to use, powerful under the hood</p>
             </div>
             <div class="feature-grid">
                 <div class="feature-card">
                     <div class="feature-icon">🛡️</div>
-                    <h3>Dock Protection</h3>
-                    <p>Intercepts mouse events at the system level — no dock flashing, no restarts, completely seamless.</p>
+                    <h3>System-Level Protection</h3>
+                    <p>Intercepts mouse events before they reach the dock. No flashing, no restarts, completely seamless.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🖥️</div>
-                    <h3>Multi-Monitor Aware</h3>
-                    <p>Visual display arrangement shows all monitors. Click any display to anchor the dock there.</p>
+                    <h3>Visual Display Picker</h3>
+                    <p>See all your monitors laid out visually. Click any display to anchor your dock there.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
                     <h3>Profiles</h3>
-                    <p>Create Work, Home, and Gaming profiles. Auto-switch based on which displays are connected.</p>
+                    <p>Create profiles for Work, Home, and more. Auto-switch based on connected displays.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔄</div>
-                    <h3>Auto-Relocate</h3>
-                    <p>Automatically moves the dock to your anchor display on startup and after sleep/wake cycles.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <h3>Light &amp; Dark Themes</h3>
-                    <p>Native macOS look with support for System, Light, and Dark themes.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📌</div>
-                    <h3>Menu Bar Integration</h3>
-                    <p>Lives in your menu bar for quick access. Status indicator shows protection state at a glance.</p>
+                    <h3>Auto-Relocate on Wake</h3>
+                    <p>Dock jumps after sleep? Not anymore. DockAnchor re-anchors automatically on wake and unlock.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🚀</div>
-                    <h3>Launch at Login</h3>
-                    <p>Start at login and run in the background. Set it once and never think about it again.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔲</div>
-                    <h3>Hot Corner Support</h3>
-                    <p>Hot corners work normally on all displays while still preventing unwanted dock movement.</p>
+                    <h3>Set It &amp; Forget It</h3>
+                    <p>Launch at login, run in the background, live in the menu bar. Never think about it again.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔒</div>
                     <h3>Privacy First</h3>
-                    <p>No data collection. No analytics. Runs entirely on your Mac. Fully open source.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="how-it-works" id="how-it-works">
-        <div class="container">
-            <div class="section-header">
-                <h2>How it works</h2>
-                <p>Up and running in under a minute</p>
-            </div>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Install &amp; Grant Access</h3>
-                    <p>Download the app and grant Accessibility permissions when prompted.</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Choose Your Display</h3>
-                    <p>Select which monitor should keep the dock using the visual display picker.</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Start Protection</h3>
-                    <p>Click "Start Protection" and your dock stays put. Enable launch at login for hands-free use.</p>
+                    <p>No data collection. No analytics. No network calls. Fully open source and auditable.</p>
                 </div>
             </div>
         </div>
@@ -537,24 +186,19 @@
     <section class="install" id="install">
         <div class="container">
             <div class="section-header">
-                <h2>Install</h2>
+                <h2>Get started in seconds</h2>
                 <p>Choose your preferred installation method</p>
             </div>
             <div class="install-options">
                 <div class="install-card">
                     <h3>📦 Direct Download</h3>
                     <p>Signed and notarized by Apple. Ready to run.</p>
-                    <a href="https://github.com/bwya77/DockAnchor/releases/latest" class="btn btn-primary" style="width: 100%; justify-content: center;">
-                        Download Latest Release
-                    </a>
+                    <a href="https://github.com/bwya77/DockAnchor/releases/latest" class="btn btn-primary" style="width: 100%; justify-content: center;">Download Latest Release</a>
                 </div>
                 <div class="install-card">
                     <h3>🍺 Homebrew</h3>
-                    <p>Install and update via the command line.</p>
-                    <div class="code-block">
-                        brew tap bwya77/tap<br>
-                        brew install --cask dockanchor
-                    </div>
+                    <p>Install and update from the command line.</p>
+                    <div class="code-block">brew tap bwya77/tap<br>brew install --cask dockanchor</div>
                 </div>
             </div>
         </div>
@@ -564,15 +208,13 @@
         <div class="container">
             <div class="cta-box">
                 <h2>Stop your dock from wandering</h2>
-                <p>Join thousands of Mac users who've anchored their dock for good.</p>
+                <p>Free, open source, and trusted by thousands of Mac users.</p>
                 <div class="hero-buttons">
                     <a href="https://github.com/bwya77/DockAnchor/releases/latest" class="btn btn-primary">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                         Download DockAnchor
                     </a>
-                    <a href="https://github.com/bwya77/DockAnchor" class="btn btn-secondary" target="_blank">
-                        Star on GitHub ⭐
-                    </a>
+                    <a href="https://github.com/bwya77/DockAnchor" class="btn btn-secondary" target="_blank">Star on GitHub ⭐</a>
                 </div>
             </div>
         </div>
