@@ -74,6 +74,5 @@ fastlane/test_output
 
 #claude
 agents/
-docs/
 CLAUDE.md
 .claude
