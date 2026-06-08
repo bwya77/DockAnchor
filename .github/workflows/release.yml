@@ -60,17 +60,25 @@ jobs:
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
             OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db"
 
+      - name: Find App Bundle
+        id: app
+        run: |
+          APP_PATH=$(find build -name "DockAnchor.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: DockAnchor.app not found"
+            find build -type d -maxdepth 3
+            exit 1
+          fi
+          echo "Found app at: $APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_OUTPUT"
+
       - name: Notarize App
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          APP_PATH=$(find build/Build/Products/Release -name "DockAnchor.app" -maxdepth 1)
-          if [ -z "$APP_PATH" ]; then
-            echo "Error: DockAnchor.app not found"
-            exit 1
-          fi
+          APP_PATH="${{ steps.app.outputs.APP_PATH }}"
 
           # Create zip for notarization
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" DockAnchor-notarize.zip
@@ -87,8 +95,7 @@ jobs:
 
       - name: Package App
         run: |
-          APP_PATH=$(find build/Build/Products/Release -name "DockAnchor.app" -maxdepth 1)
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" DockAnchor.zip
+          ditto -c -k --sequesterRsrc --keepParent "${{ steps.app.outputs.APP_PATH }}" DockAnchor.zip
 
       - name: Clean up keychain
         if: always()
