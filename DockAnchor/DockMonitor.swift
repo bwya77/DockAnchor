@@ -962,16 +962,14 @@ class DockMonitor: NSObject, ObservableObject {
         
         guard result == .success else { return displays }
         
-        // Get system display information once
-        let systemDisplays = getSystemDisplaysInfo()
         let mainDisplayID = CGMainDisplayID()
-        
+
         for i in 0..<Int(displayCount) {
             let displayID = displayIDs[i]
             let uuid = Self.getDisplayUUID(for: displayID)
             let serialNumber = Self.getSerialNumber(for: displayID)
             let frame = CGDisplayBounds(displayID)
-            let name = getDisplayName(for: displayID, systemDisplays: systemDisplays)
+            let name = getDisplayName(for: displayID)
             let isPrimary = displayID == mainDisplayID
 
             displays.append(DisplayInfo(id: displayID, uuid: uuid, serialNumber: serialNumber, frame: frame, name: name, isPrimary: isPrimary))
@@ -987,259 +985,24 @@ class DockMonitor: NSObject, ObservableObject {
         return displays
     }
     
-    private func getSystemDisplaysInfo() -> [(name: String, info: [String: String])] {
-        let task = Process()
-        task.launchPath = "/usr/sbin/system_profiler"
-        task.arguments = ["SPDisplaysDataType"]
-        
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        
-        do {
-            try task.run()
-            task.waitUntilExit()
-            
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            
-            // Parse the output to find display names
-            let lines = output.components(separatedBy: .newlines)
-            var displays: [(name: String, info: [String: String])] = []
-            var currentDisplayName: String?
-            var currentDisplayInfo: [String: String] = [:]
-            
-            for line in lines {
-                let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-                
-                // Look for display names (lines ending with ":" that are indented)
-                if trimmedLine.hasSuffix(":") && line.hasPrefix("        ") && !line.hasPrefix("          ") {
-                    let displayName = String(trimmedLine.dropLast()) // Remove the ":"
-                    
-                    // Save the previous display if we have one
-                    if let prevDisplayName = currentDisplayName {
-                        displays.append((name: prevDisplayName, info: currentDisplayInfo))
-                    }
-                    
-                    // Start new display
-                    currentDisplayName = displayName
-                    currentDisplayInfo = [:]
-                }
-                
-                // Collect display properties
-                if line.hasPrefix("          ") && currentDisplayName != nil {
-                    let propertyLine = line.trimmingCharacters(in: .whitespaces)
-                    if propertyLine.contains(":") {
-                        let components = propertyLine.components(separatedBy: ":")
-                        if components.count >= 2 {
-                            let key = components[0].trimmingCharacters(in: .whitespaces)
-                            let value = components[1].trimmingCharacters(in: .whitespaces)
-                            currentDisplayInfo[key] = value
-                        }
-                    }
-                }
-            }
-            
-            // Add the last display
-            if let lastDisplayName = currentDisplayName {
-                displays.append((name: lastDisplayName, info: currentDisplayInfo))
-            }
-
-            return displays
-
-        } catch {
-            return []
+    private func getDisplayName(for displayID: CGDirectDisplayID) -> String {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        if let screen = NSScreen.screens.first(where: {
+            ($0.deviceDescription[key] as? CGDirectDisplayID) == displayID
+        }) {
+            let isPrimary = displayID == CGMainDisplayID()
+            return isPrimary ? "\(screen.localizedName) (Primary)" : screen.localizedName
         }
-    }
-    
-    private func getDisplayName(for displayID: CGDirectDisplayID, systemDisplays: [(name: String, info: [String: String])]) -> String {
-        let mainDisplayID = CGMainDisplayID()
-        
-        // Get the actual display name from the system
-        if let displayName = findBestDisplayMatch(displayID: displayID, displays: systemDisplays) {
-            let isPrimary = displayID == mainDisplayID
-            return isPrimary ? "\(displayName) (Primary)" : displayName
-        }
-        
-        // Fallback to generic names if we can't get the system name
-        if displayID == mainDisplayID {
-            return "Primary Display"
-        } else {
-            // Try to get a more descriptive name based on position
-            let frame = CGDisplayBounds(displayID)
-            let mainFrame = CGDisplayBounds(mainDisplayID)
-            
-            if frame.minX > mainFrame.maxX {
-                return "Right Display"
-            } else if frame.maxX < mainFrame.minX {
-                return "Left Display"
-            } else if frame.minY > mainFrame.maxY {
-                return "Bottom Display"
-            } else if frame.maxY < mainFrame.minY {
-                return "Top Display"
-            } else {
-                return "Secondary Display"
-            }
-        }
-    }
-    
-
-    
-    private func findBestDisplayMatch(displayID: CGDirectDisplayID, displays: [(name: String, info: [String: String])]) -> String? {
+        if displayID == CGMainDisplayID() { return "Primary Display" }
         let frame = CGDisplayBounds(displayID)
-        let actualResolution = "\(Int(frame.width)) x \(Int(frame.height))"
-        let mainDisplayID = CGMainDisplayID()
-        let isMainDisplay = displayID == mainDisplayID
-
-        // First priority: Check for Virtual Device/AirPlay for Sidecar displays WITH resolution match
-        for display in displays {
-            // Check if this is a Sidecar display by name first AND resolution matches
-            if display.name.contains("Sidecar") {
-                if resolution_matches_exactly(actualResolution, display.info["Resolution"]) ||
-                   resolution_matches_approximately(actualResolution, display.info["Resolution"]) {
-                    return "Sidecar"
-                }
-            }
-
-            // Only check for Virtual Device + AirPlay combination for Sidecar WITH resolution match
-            if let virtualDevice = display.info["Virtual Device"], virtualDevice.contains("Yes"),
-               let connectionType = display.info["Connection Type"], connectionType.contains("AirPlay") {
-                if resolution_matches_exactly(actualResolution, display.info["Resolution"]) ||
-                   resolution_matches_approximately(actualResolution, display.info["Resolution"]) {
-                    return "Sidecar"
-                }
-            }
-        }
-
-        // Second priority: Check for Built-in displays by Display Type or Connection Type
-        for display in displays {
-            if let displayType = display.info["Display Type"], displayType.contains("Built-in") {
-                if resolution_matches_exactly(actualResolution, display.info["Resolution"]) {
-                    return display.name.contains("Color LCD") ? "Built-in Display" : display.name
-                }
-            }
-            if let connectionType = display.info["Connection Type"], connectionType.contains("Internal") {
-                if resolution_matches_exactly(actualResolution, display.info["Resolution"]) {
-                    return display.name.contains("Color LCD") ? "Built-in Display" : display.name
-                }
-            }
-        }
-
-        // Third priority: Check for external displays with exact resolution match
-        for display in displays {
-            if let resolution = display.info["Resolution"] {
-                if resolution_matches_exactly(actualResolution, resolution) {
-                    // Skip displays we've already handled
-                    if let connectionType = display.info["Connection Type"] {
-                        if connectionType.contains("Internal") || connectionType.contains("AirPlay") {
-                            continue
-                        }
-                    }
-                    if let virtualDevice = display.info["Virtual Device"], virtualDevice.contains("Yes") {
-                        continue
-                    }
-                    return display.name
-                }
-            }
-        }
-
-        // Fourth priority: Check by Main Display flag with resolution confirmation
-        if isMainDisplay {
-            for display in displays {
-                if let mainDisplayFlag = display.info["Main Display"], mainDisplayFlag.contains("Yes") {
-                    if let resolution = display.info["Resolution"], resolution_matches_exactly(actualResolution, resolution) {
-                        return display.name.contains("Color LCD") ? "Built-in Display" : display.name
-                    }
-                }
-            }
-        }
-
-        // Fifth priority: Approximate resolution matching as fallback
-        for display in displays {
-            if let resolution = display.info["Resolution"] {
-                if resolution_matches_approximately(actualResolution, resolution) {
-                    if display.name.contains("Color LCD") || display.name.contains("Built-in") {
-                        return "Built-in Display"
-                    } else if display.name.contains("Sidecar") {
-                        return "Sidecar"
-                    } else {
-                        return display.name
-                    }
-                }
-            }
-        }
-
-        return nil
+        let mainFrame = CGDisplayBounds(CGMainDisplayID())
+        if frame.minX > mainFrame.maxX { return "Right Display" }
+        if frame.maxX < mainFrame.minX { return "Left Display" }
+        if frame.minY > mainFrame.maxY { return "Bottom Display" }
+        if frame.maxY < mainFrame.minY { return "Top Display" }
+        return "Secondary Display"
     }
-    
-    private func resolution_matches_exactly(_ actual: String, _ reported: String?) -> Bool {
-        guard let reported = reported else { return false }
-        
-        // Extract width and height from actual resolution (e.g., "3840 x 1600")
-        let actualComponents = actual.components(separatedBy: " x ")
-        guard actualComponents.count == 2,
-              let actualWidth = Int(actualComponents[0]),
-              let actualHeight = Int(actualComponents[1]) else {
-            return false
-        }
-        
-        // Extract width and height from reported resolution (e.g., "3840 x 1600 (Ultra-wide 4K)")
-        let reportedNumbers = reported.components(separatedBy: CharacterSet.decimalDigits.inverted).filter { !$0.isEmpty }
-        guard reportedNumbers.count >= 2,
-              let reportedWidth = Int(reportedNumbers[0]),
-              let reportedHeight = Int(reportedNumbers[1]) else {
-            return false
-        }
-        
-        // Check exact match
-        if actualWidth == reportedWidth && actualHeight == reportedHeight {
-            return true
-        }
 
-        // Check for common scaling scenarios (e.g., Retina displays)
-        // For Retina displays, the actual resolution is often scaled
-        if (actualWidth == reportedWidth / 2 && actualHeight == reportedHeight / 2) ||
-           (actualWidth * 2 == reportedWidth && actualHeight * 2 == reportedHeight) {
-            return true
-        }
-
-        // For some Retina displays, the scaling might be different
-        // Check if the aspect ratio matches and if one is a reasonable scale of the other
-        let actualAspectRatio = Double(actualWidth) / Double(actualHeight)
-        let reportedAspectRatio = Double(reportedWidth) / Double(reportedHeight)
-
-        // If aspect ratios are close (within 5% tolerance) and one is a scale of the other
-        if abs(actualAspectRatio - reportedAspectRatio) < 0.05 {
-            let scaleX = Double(reportedWidth) / Double(actualWidth)
-            let scaleY = Double(reportedHeight) / Double(actualHeight)
-
-            // Check if both scales are similar (within 10% tolerance) and reasonable (between 1.2 and 3.0)
-            if abs(scaleX - scaleY) < 0.1 && scaleX > 1.2 && scaleX < 3.0 {
-                return true
-            }
-        }
-        
-        return false
-    }
-    
-    private func resolution_matches_approximately(_ actual: String, _ reported: String?) -> Bool {
-        guard let reported = reported else { return false }
-        
-        // Extract numbers from resolution strings
-        let actualComponents = actual.components(separatedBy: " x ")
-        let reportedNumbers = reported.components(separatedBy: CharacterSet.decimalDigits.inverted).filter { !$0.isEmpty }
-        
-        if actualComponents.count == 2 && reportedNumbers.count >= 2 {
-            let actualWidth = Int(actualComponents[0]) ?? 0
-            let actualHeight = Int(actualComponents[1]) ?? 0
-            let reportedWidth = Int(reportedNumbers[0]) ?? 0
-            let reportedHeight = Int(reportedNumbers[1]) ?? 0
-            
-            return actualWidth == reportedWidth && actualHeight == reportedHeight
-        }
-        
-        return false
-    }
-    
     func refreshDisplays() {
         let maxDisplays: UInt32 = 16
         var displayIDs = [CGDirectDisplayID](repeating: 0, count: Int(maxDisplays))
@@ -1251,11 +1014,8 @@ class DockMonitor: NSObject, ObservableObject {
             return
         }
         
-        // Get system display information once
-        let systemDisplays = getSystemDisplaysInfo()
-        
         var newDisplays: [DisplayInfo] = []
-        
+
         for i in 0..<displayCount {
             let displayID = displayIDs[Int(i)]
             let frame = CGDisplayBounds(displayID)
@@ -1267,7 +1027,7 @@ class DockMonitor: NSObject, ObservableObject {
 
             let uuid = Self.getDisplayUUID(for: displayID)
             let serialNumber = Self.getSerialNumber(for: displayID)
-            let name = getDisplayName(for: displayID, systemDisplays: systemDisplays)
+            let name = getDisplayName(for: displayID)
             let isPrimary = displayID == CGMainDisplayID()
 
             newDisplays.append(DisplayInfo(
