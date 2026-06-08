@@ -58,7 +58,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
-            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db"
+            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db --timestamp"
 
       - name: Find App Bundle
         id: app
@@ -84,11 +84,23 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" DockAnchor-notarize.zip
 
           # Submit for notarization and wait
-          xcrun notarytool submit DockAnchor-notarize.zip \
+          SUBMISSION_OUTPUT=$(xcrun notarytool submit DockAnchor-notarize.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait 2>&1) || true
+          echo "$SUBMISSION_OUTPUT"
+
+          # Extract submission ID and check status
+          SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | grep "id:" | head -1 | awk '{print $2}')
+          if echo "$SUBMISSION_OUTPUT" | grep -q "status: Invalid"; then
+            echo "Notarization failed. Fetching log..."
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_ID_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID"
+            exit 1
+          fi
 
           # Staple the notarization ticket
           xcrun stapler staple "$APP_PATH"
