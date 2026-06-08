@@ -52,14 +52,13 @@ jobs:
           xcodebuild build \
             -project DockAnchor.xcodeproj \
             -scheme DockAnchor \
-            -destination 'platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             -configuration Release \
             -derivedDataPath build \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
-            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db" \
-            | xcpretty --color
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/app-signing.keychain-db"
 
       - name: Notarize App
         env:
