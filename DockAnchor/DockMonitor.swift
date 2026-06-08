@@ -99,6 +99,7 @@ class DockMonitor: NSObject, ObservableObject {
     private var dockPosition: DockPosition = .bottom
     private var cancellables = Set<AnyCancellable>()
     private var permissionCheckTimer: Timer?
+    private var pendingRelocationWork: DispatchWorkItem?
 
     /// Gets the current anchor display ID (derived from UUID)
     private var anchorDisplayID: CGDirectDisplayID {
@@ -236,6 +237,84 @@ class DockMonitor: NSObject, ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // Listen for system wake from sleep — catches wakes where the screen doesn't lock
+        // (e.g., "Require password after sleep: Never/5 minutes").
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleSystemWake()
+            }
+            .store(in: &cancellables)
+
+        // Listen for screen unlock — the most reliable trigger for the clamshell case.
+        // By the time the user authenticates, all displays are online and the Dock has
+        // already settled, so a much shorter stabilization delay is needed.
+        // This is a distributed notification posted by the macOS screensaver/lock mechanism.
+        DistributedNotificationCenter.default().publisher(for: Notification.Name("com.apple.screenIsUnlocked"))
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleScreenUnlock()
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Schedules a dock relocation, cancelling any already-pending one.
+    /// All auto-relocation triggers (wake, unlock, display connect) funnel through
+    /// here so only ever one relocation sweep is queued at a time.
+    private func scheduleRelocation(after delay: TimeInterval) {
+        pendingRelocationWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.pendingRelocationWork = nil
+            self.updateAvailableDisplays()
+            self.relocateDockToAnchoredDisplay()
+        }
+        pendingRelocationWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    /// Re-anchors the dock after the system wakes from sleep.
+    /// macOS resets the Dock to the primary display on wake; this corrects it.
+    private func handleSystemWake() {
+        // Only proceed if the user has protection active or auto-relocate enabled
+        guard isMonitoring || AppSettings.shared.autoRelocateDock else { return }
+
+        statusMessage = "System woke from sleep — re-anchoring dock..."
+
+        // Do NOT call updateAvailableDisplays() here immediately. On wake, displays come
+        // back online one at a time. Calling it while only the primary display has registered
+        // would trigger validateCurrentAnchorDisplay() with a single-display list and could
+        // temporarily redirect the anchor away from the user's saved preference.
+
+        // Route through the shared scheduler so any later trigger (unlock, addFlag, etc.)
+        // cancels this and replaces it with its own — preventing a double sweep.
+        scheduleRelocation(after: 3.0)
+
+        // Retry at 8 s in case the first attempt fired before the Dock was ready.
+        // relocateDockToAnchoredDisplay() is a no-op when the dock is already correct,
+        // so this is always safe to call.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
+            guard let self = self else { return }
+            if let currentDock = self.getCurrentDockDisplayID(), currentDock != self.anchorDisplayID {
+                self.updateAvailableDisplays()
+                self.relocateDockToAnchoredDisplay()
+            }
+        }
+    }
+
+    /// Re-anchors the dock after the user unlocks the screen.
+    /// By unlock time all displays and the Dock are fully initialized, so only
+    /// a short stabilization delay is needed before relocating.
+    private func handleScreenUnlock() {
+        guard isMonitoring || AppSettings.shared.autoRelocateDock else { return }
+
+        statusMessage = "Screen unlocked — re-anchoring dock..."
+
+        // 1 s is enough: the display system is fully up by the time the user has
+        // authenticated. Routing through scheduleRelocation() cancels any pending
+        // wake or addFlag relocation so only one sweep fires.
+        scheduleRelocation(after: 1.0)
     }
 
     /// Gets the UUID of the built-in display (if available)
@@ -288,11 +367,15 @@ class DockMonitor: NSObject, ObservableObject {
     }
     
     private func validateCurrentAnchorDisplay() {
-        // If there's only one display, always select it
+        // If there's only one display, use it temporarily — but DON'T persist to AppSettings.
+        // On wake from sleep, displays come back online one at a time; overwriting
+        // selectedDisplayUUID here would permanently corrupt the user's saved preference
+        // before the second display has had a chance to register.
         if availableDisplays.count == 1, let onlyDisplay = availableDisplays.first {
             if anchorDisplayUUID != onlyDisplay.uuid {
                 anchorDisplayUUID = onlyDisplay.uuid
-                AppSettings.shared.selectedDisplayUUID = onlyDisplay.uuid
+                // Intentionally NOT updating AppSettings.selectedDisplayUUID here —
+                // same approach as the "anchor unavailable" path below.
             }
             return
         }
@@ -1350,9 +1433,7 @@ class DockMonitor: NSObject, ObservableObject {
 
                     // Auto-relocate dock if enabled (with delay to let display stabilize)
                     if AppSettings.shared.autoRelocateDock {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                            self?.relocateDockToAnchoredDisplay()
-                        }
+                        scheduleRelocation(after: 1.0)
                     }
                 }
 
@@ -1391,7 +1472,15 @@ class DockMonitor: NSObject, ObservableObject {
                         self.statusMessage = "Dock Anchor Ready"
                     }
                 }
-            } else if flags.contains(.enabledFlag) || flags.contains(.disabledFlag) {
+            } else if flags.contains(.enabledFlag) {
+                // A display was re-enabled (e.g., monitor waking from display sleep).
+                // Delay the display list refresh — firing it immediately while other displays
+                // are still coming back online can cause validateCurrentAnchorDisplay() to
+                // see a partial list and temporarily misdirect the anchor.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                    self?.updateAvailableDisplays()
+                }
+            } else if flags.contains(.disabledFlag) {
                 self.updateAvailableDisplays()
             } else if flags.contains(.movedFlag) || flags.contains(.desktopShapeChangedFlag) {
                 // Display was moved/rearranged or desktop shape changed
@@ -1432,9 +1521,7 @@ class DockMonitor: NSObject, ObservableObject {
 
                             // Auto-relocate dock if enabled
                             if AppSettings.shared.autoRelocateDock {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                                    self?.relocateDockToAnchoredDisplay()
-                                }
+                                scheduleRelocation(after: 0.5)
                             }
 
                             // Reset status message after 3 seconds
