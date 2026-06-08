@@ -55,6 +55,12 @@ struct DockProfile: Identifiable, Codable, Equatable {
     }
 }
 
+enum CursorXPosition: String, CaseIterable {
+    case left = "Left"
+    case center = "Center"
+    case right = "Right"
+}
+
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
@@ -104,6 +110,18 @@ class AppSettings: ObservableObject {
     @Published var appTheme: AppTheme {
         didSet {
             UserDefaults.standard.set(appTheme.rawValue, forKey: "appTheme")
+        }
+    }
+
+    @Published var cursorPosition: CursorXPosition {
+        didSet {
+            UserDefaults.standard.set(cursorPosition.rawValue, forKey: "cursorPosition")
+        }
+    }
+
+    @Published var cursorOffset: Double {
+        didSet {
+            UserDefaults.standard.set(cursorOffset, forKey: "cursorOffset")
         }
     }
 
@@ -168,6 +186,13 @@ class AppSettings: ObservableObject {
         // Get saved theme or default to system
         let savedTheme = UserDefaults.standard.string(forKey: "appTheme") ?? "System"
         self.appTheme = AppTheme(rawValue: savedTheme) ?? .system
+
+        // Get saved cursor position or default to center
+        let savedPosition = UserDefaults.standard.string(forKey: "cursorPosition") ?? "Center"
+        self.cursorPosition = CursorXPosition(rawValue: savedPosition) ?? .center
+        
+        // Get saved cursor offset or default to 50 pixels
+        self.cursorOffset = UserDefaults.standard.object(forKey: "cursorOffset") as? Double ?? 50.0
 
         // Load saved profiles
         self.profiles = Self.loadProfiles()
