@@ -90,33 +90,33 @@ class UpdateChecker: ObservableObject {
     }
     
     private func isNewerVersion(_ latestVersion: String) -> Bool {
+        return Self.isVersionNewer(latestVersion, than: currentVersion)
+    }
+
+    /// Compares two dot-separated version strings (e.g. "2.1.5" vs "2.1").
+    /// A missing trailing component is treated as 0, so versions with a
+    /// different number of components still compare correctly - a release
+    /// tagged "2.1.5" is recognized as newer than a running "2.1" build.
+    /// Exposed as a static, self-contained function so it can be unit
+    /// tested without touching the network or app singletons.
+    static func isVersionNewer(_ latestVersion: String, than currentVersion: String) -> Bool {
         let currentComponents = currentVersion.split(separator: ".").compactMap { Int($0) }
         let latestComponents = latestVersion.split(separator: ".").compactMap { Int($0) }
-        
+
         // Ensure both versions have at least major and minor components
         guard currentComponents.count >= 2, latestComponents.count >= 2 else {
             return false
         }
-        
-        // Compare major version
-        if latestComponents[0] > currentComponents[0] {
-            return true
-        } else if latestComponents[0] < currentComponents[0] {
-            return false
+
+        let componentCount = max(currentComponents.count, latestComponents.count)
+        for index in 0..<componentCount {
+            let current = index < currentComponents.count ? currentComponents[index] : 0
+            let latest = index < latestComponents.count ? latestComponents[index] : 0
+            if latest != current {
+                return latest > current
+            }
         }
-        
-        // Compare minor version
-        if latestComponents[1] > currentComponents[1] {
-            return true
-        } else if latestComponents[1] < currentComponents[1] {
-            return false
-        }
-        
-        // Compare patch version if available
-        if currentComponents.count >= 3 && latestComponents.count >= 3 {
-            return latestComponents[2] > currentComponents[2]
-        }
-        
+
         return false
     }
     
