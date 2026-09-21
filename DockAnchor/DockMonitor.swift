@@ -108,6 +108,8 @@ class DockMonitor: NSObject, ObservableObject {
     }
 
     /// Flag to suppress user mouse input during dock relocation
+    private var relocationInFlight = false
+    private var relocationRequestedWhileInFlight = false
     private var isRelocating = false
 
     /// Magic value to identify our synthetic events (so we don't block our own events)
@@ -274,7 +276,6 @@ class DockMonitor: NSObject, ObservableObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
             self.pendingRelocationWork = nil
-            self.updateAvailableDisplays()
             self.relocateDockToAnchoredDisplay()
         }
         pendingRelocationWork = work
@@ -304,7 +305,6 @@ class DockMonitor: NSObject, ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
             guard let self = self else { return }
             if let currentDock = self.getCurrentDockDisplayID(), currentDock != self.anchorDisplayID {
-                self.updateAvailableDisplays()
                 self.relocateDockToAnchoredDisplay()
             }
         }
@@ -672,8 +672,14 @@ class DockMonitor: NSObject, ObservableObject {
     }
 
     /// Moves the dock to the anchored display by simulating mouse movement to the dock trigger zone
-    func relocateDockToAnchoredDisplay() {
-        guard let anchorDisplay = availableDisplays.first(where: { $0.id == anchorDisplayID }) else {
+    func relocateDockToAnchoredDisplay(attempt: Int = 1) {
+        guard !relocationInFlight else {
+            relocationRequestedWhileInFlight = true
+            return
+        }
+        updateAvailableDisplays()
+        let targetDisplayID = anchorDisplayID
+        guard let anchorDisplay = availableDisplays.first(where: { $0.id == targetDisplayID }) else {
             statusMessage = "Cannot relocate dock - anchor display not found"
             return
         }
@@ -683,8 +689,12 @@ class DockMonitor: NSObject, ObservableObject {
             return
         }
 
+        guard checkAccessibilityPermissions() else {
+            statusMessage = "Cannot relocate Dock: Accessibility permission required"
+            return
+        }
         // Check if dock is already on the anchored display
-        if let currentDockDisplay = getCurrentDockDisplayID(), currentDockDisplay == anchorDisplayID {
+        if let currentDockDisplay = getCurrentDockDisplayID(), currentDockDisplay == targetDisplayID {
             DispatchQueue.main.async { [weak self] in
                 self?.statusMessage = "Dock is already on \(anchorDisplay.name)"
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
@@ -699,11 +709,25 @@ class DockMonitor: NSObject, ObservableObject {
             return
         }
 
+        guard let edgePoint = exposedTriggerPoint(for: anchorDisplay) else {
+            statusMessage = "Cannot relocate Dock: selected display has no exposed Dock edge"
+            return
+        }
+        var approachPoint = edgePoint
+        switch dockPosition {
+        case .bottom: approachPoint.y -= 50
+        case .left: approachPoint.x += 50
+        case .right: approachPoint.x -= 50
+        }
+
         DispatchQueue.main.async { [weak self] in
             self?.statusMessage = "Relocating dock to \(anchorDisplay.name)..."
         }
 
-        // Perform relocation on background thread to not block UI
+        // Reserve this attempt before dispatching, so wake/unlock cannot overlap it.
+        relocationInFlight = true
+        isRelocating = true
+        let targetUUID = anchorDisplay.uuid
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
 
@@ -717,10 +741,6 @@ class DockMonitor: NSObject, ObservableObject {
                 temporaryTapCreated = self.createEventTapForRelocation()
             }
 
-            // Set relocating flag - this causes the event tap to discard all mouse events
-            // This is the key to preventing user mouse movement from interfering
-            self.isRelocating = true
-
             // Hide cursor during the operation for better UX
             DispatchQueue.main.sync {
                 NSCursor.hide()
@@ -728,10 +748,6 @@ class DockMonitor: NSObject, ObservableObject {
 
             // Create an event source for our synthetic events
             let eventSource = CGEventSource(stateID: .hidSystemState)
-
-            // Get points for the movement
-            let approachPoint = self.getApproachPoint(for: anchorDisplay)
-            let edgePoint = self.getDockTriggerPoint(for: anchorDisplay)
 
             // Warp to approach point first
             CGWarpMouseCursorPosition(approachPoint)
@@ -781,17 +797,28 @@ class DockMonitor: NSObject, ObservableObject {
                 NSCursor.unhide()
             }
 
-            DispatchQueue.main.async { [weak self] in
-                self?.statusMessage = "Dock relocated to \(anchorDisplay.name)"
-
-                // Reset status after delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                    guard let self = self else { return }
-                    if self.isActive {
-                        self.statusMessage = "Dock Anchor Active - Monitoring mouse movement"
-                    } else {
-                        self.statusMessage = "Dock Anchor Ready"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
+                guard let self else { return }
+                self.relocationInFlight = false
+                if self.relocationRequestedWhileInFlight {
+                    self.relocationRequestedWhileInFlight = false
+                    self.relocateDockToAnchoredDisplay()
+                    return
+                }
+                guard self.anchorDisplayUUID == targetUUID else { return }
+                let actual = self.getCurrentDockDisplayID()
+                if actual == anchorDisplay.id {
+                    self.statusMessage = "Dock relocation verified on \(anchorDisplay.name)"
+                } else if actual == nil {
+                    self.statusMessage = "Relocation attempted — Dock position unavailable"
+                } else if attempt < 3 {
+                    self.statusMessage = "Dock relocation unconfirmed — retrying..."
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                        guard let self, self.anchorDisplayUUID == targetUUID else { return }
+                        self.relocateDockToAnchoredDisplay(attempt: attempt + 1)
                     }
+                } else {
+                    self.statusMessage = "Could not verify Dock relocation"
                 }
             }
         }
@@ -807,112 +834,58 @@ class DockMonitor: NSObject, ObservableObject {
         // Use accessibility API to find dock window position
         let dockElement = AXUIElementCreateApplication(dockApp!.processIdentifier)
 
-        var windowsValue: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(dockElement, kAXWindowsAttribute as CFString, &windowsValue)
+        // The Dock exposes its icon strip as an AXList child, not necessarily
+        // as an AXWindow. Reading AXWindows alone can return no position.
+        var childrenValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(dockElement, kAXChildrenAttribute as CFString, &childrenValue) == .success,
+              let children = childrenValue as? [AXUIElement] else { return nil }
 
-        guard result == .success, let windows = windowsValue as? [AXUIElement], !windows.isEmpty else {
-            return nil
-        }
+        for child in children {
+            var role: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(child, kAXRoleAttribute as CFString, &role) == .success,
+                  role as? String == kAXListRole else { continue }
 
-        // Get the position of the first dock window
-        var positionValue: CFTypeRef?
-        let posResult = AXUIElementCopyAttributeValue(windows[0], kAXPositionAttribute as CFString, &positionValue)
+            var positionValue: CFTypeRef?
+            var sizeValue: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(child, kAXPositionAttribute as CFString, &positionValue) == .success,
+                  AXUIElementCopyAttributeValue(child, kAXSizeAttribute as CFString, &sizeValue) == .success,
+                  let positionValue, let sizeValue,
+                  CFGetTypeID(positionValue) == AXValueGetTypeID(),
+                  CFGetTypeID(sizeValue) == AXValueGetTypeID() else { continue }
 
-        guard posResult == .success else { return nil }
-
-        var position = CGPoint.zero
-        if let positionValue = positionValue, AXValueGetValue(positionValue as! AXValue, .cgPoint, &position) {
-            // Find which display contains this position
-            for display in availableDisplays {
-                if display.frame.contains(position) {
-                    return display.id
-                }
+            var origin = CGPoint.zero
+            var size = CGSize.zero
+            guard AXValueGetValue(positionValue as! AXValue, .cgPoint, &origin),
+                  AXValueGetValue(sizeValue as! AXValue, .cgSize, &size),
+                  size.width > 0, size.height > 0 else { continue }
+            let center = CGPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
+            if let display = availableDisplays.first(where: { $0.frame.contains(center) }) {
+                return display.id
             }
         }
 
         return nil
     }
 
-    /// Gets the approach point (slightly before the edge) for dock trigger animation
-    private func getApproachPoint(for display: DisplayInfo) -> CGPoint {
-        let frame = display.frame
-        let offset: CGFloat = 50 // Start 50 pixels from the edge
-        let xPosition = CursorXPosition(rawValue: AppSettings.shared.cursorPosition.rawValue) ?? .center
-        let offsetValue = CGFloat(AppSettings.shared.cursorOffset)
-
+    private func exposedTriggerPoint(for display: DisplayInfo) -> CGPoint? {
+        let edge: RelocationGeometry.Edge
+        let preferred: CGFloat
         switch dockPosition {
         case .bottom:
-            var xPos: CGFloat
-            switch xPosition {
-            case .left:
-                xPos = frame.minX + offsetValue
-            case .center:
-                xPos = frame.midX
-            case .right:
-                xPos = frame.maxX - offsetValue
+            edge = .bottom
+            switch AppSettings.shared.cursorPosition {
+            case .left: preferred = display.frame.minX + CGFloat(AppSettings.shared.cursorOffset)
+            case .center: preferred = display.frame.midX
+            case .right: preferred = display.frame.maxX - CGFloat(AppSettings.shared.cursorOffset)
             }
-            return CGPoint(x: xPos, y: frame.maxY - offset)
-        case .left:
-            return CGPoint(x: frame.minX + offset, y: frame.midY)
-        case .right:
-            return CGPoint(x: frame.maxX - offset, y: frame.midY)
+        case .left: edge = .left; preferred = display.frame.midY
+        case .right: edge = .right; preferred = display.frame.midY
         }
+        return RelocationGeometry.target(frame: display.frame,
+            others: availableDisplays.filter { $0.id != display.id }.map(\.frame),
+            edge: edge, preferred: preferred)
     }
 
-    /// Gets a point past the edge to create "pressure" against the screen edge
-    private func getPastEdgePoint(for display: DisplayInfo) -> CGPoint {
-        let frame = display.frame
-        let overshoot: CGFloat = 20 // Try to move 20 pixels past the edge
-        let xPosition = CursorXPosition(rawValue: AppSettings.shared.cursorPosition.rawValue) ?? .center
-        let offsetValue = CGFloat(AppSettings.shared.cursorOffset)
-
-        switch dockPosition {
-        case .bottom:
-            var xPos: CGFloat
-            switch xPosition {
-            case .left:
-                xPos = frame.minX + offsetValue
-            case .center:
-                xPos = frame.midX
-            case .right:
-                xPos = frame.maxX - offsetValue
-            }
-            return CGPoint(x: xPos, y: frame.maxY + overshoot)
-        case .left:
-            return CGPoint(x: frame.minX - overshoot, y: frame.midY)
-        case .right:
-            return CGPoint(x: frame.maxX + overshoot, y: frame.midY)
-        }
-    }
-
-    /// Gets the point in the dock trigger zone for a display
-    private func getDockTriggerPoint(for display: DisplayInfo) -> CGPoint {
-        let frame = display.frame
-        let xPosition = CursorXPosition(rawValue: AppSettings.shared.cursorPosition.rawValue) ?? .center
-        let offsetValue = CGFloat(AppSettings.shared.cursorOffset)
-
-        switch dockPosition {
-        case .bottom:
-            var xPos: CGFloat
-            switch xPosition {
-            case .left:
-                xPos = frame.minX + offsetValue
-            case .center:
-                xPos = frame.midX
-            case .right:
-                xPos = frame.maxX - offsetValue
-            }
-            // Bottom edge of the display
-            return CGPoint(x: xPos, y: frame.maxY - 1)
-        case .left:
-            // Left center of the display, at the very edge
-            return CGPoint(x: frame.minX + 1, y: frame.midY)
-        case .right:
-            // Right center of the display, at the very edge
-            return CGPoint(x: frame.maxX - 1, y: frame.midY)
-        }
-    }
-    
     private func handleMouseEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         guard type == .mouseMoved else {
             return Unmanaged.passUnretained(event)
