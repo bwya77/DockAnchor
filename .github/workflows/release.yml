@@ -52,7 +52,7 @@ jobs:
           xcodebuild build \
             -project DockAnchor.xcodeproj \
             -scheme DockAnchor \
-            -destination 'platform=macOS,arch=arm64' \
+            -destination 'generic/platform=macOS' \
             -configuration Release \
             -derivedDataPath build \
             CODE_SIGN_STYLE=Manual \
@@ -72,6 +72,15 @@ jobs:
           fi
           echo "Found app at: $APP_PATH"
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Universal Binary
+        run: |
+          BINARY="${{ steps.app.outputs.APP_PATH }}/Contents/MacOS/DockAnchor"
+          lipo -info "$BINARY"
+          if ! lipo "$BINARY" -verify_arch arm64 x86_64; then
+            echo "Error: DockAnchor must contain both arm64 and x86_64 slices"
+            exit 1
+          fi
 
       - name: Notarize App
         env:
