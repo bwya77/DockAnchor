@@ -112,7 +112,22 @@ class DockMonitor: NSObject, ObservableObject {
 
     /// Magic value to identify our synthetic events (so we don't block our own events)
     private let syntheticEventMarker: Int64 = 0xD0C4A5C4 // "DOCKASCR" in hex-ish
-    
+
+    /// Pointer-motion events that can carry the cursor into a Dock trigger zone.
+    /// While a mouse button is held (dragging a file, window or tab), macOS sends
+    /// the *MouseDragged types instead of `.mouseMoved`, so all of them must be watched.
+    static let pointerMotionEventTypes: [CGEventType] = [
+        .mouseMoved,
+        .leftMouseDragged,
+        .rightMouseDragged,
+        .otherMouseDragged,
+    ]
+
+    /// Event tap mask covering every pointer-motion event type.
+    static let pointerMotionEventMask: CGEventMask = pointerMotionEventTypes.reduce(0) {
+        $0 | (CGEventMask(1) << CGEventMask($1.rawValue))
+    }
+
     // MARK: - Hot Corner Support
     /// Track if we're currently in a corner zone
     private var currentlyInCorner = false
@@ -549,11 +564,9 @@ class DockMonitor: NSObject, ObservableObject {
         
         updateAvailableDisplays()
         
-        // Include mouse moved + tap-disabled notifications so we can recover if the system disables tap
-        let mouseMovedMask = 1 << CGEventType.mouseMoved.rawValue
-        let disabledByTimeoutMask = 1 << CGEventType.tapDisabledByTimeout.rawValue
-        let disabledByUserInputMask = 1 << CGEventType.tapDisabledByUserInput.rawValue
-        let eventMask = CGEventMask(mouseMovedMask | disabledByTimeoutMask | disabledByUserInputMask)
+        // Watch plain moves and drags. Tap-disabled notifications (handled in the callback)
+        // are delivered to every tap regardless of its mask, so they need no bits here.
+        let eventMask = Self.pointerMotionEventMask
 
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -629,8 +642,7 @@ class DockMonitor: NSObject, ObservableObject {
     private func createEventTapForRelocation() -> Bool {
         guard eventTap == nil else { return false }
 
-        let mouseMovedMask = 1 << CGEventType.mouseMoved.rawValue
-        let eventMask = CGEventMask(mouseMovedMask)
+        let eventMask = Self.pointerMotionEventMask
 
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -914,7 +926,7 @@ class DockMonitor: NSObject, ObservableObject {
     }
     
     private func handleMouseEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        guard type == .mouseMoved else {
+        guard Self.pointerMotionEventTypes.contains(type) else {
             return Unmanaged.passUnretained(event)
         }
 
